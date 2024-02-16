@@ -1,0 +1,11 @@
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDkyODQ5MzcsInVzZXJfaWQiOiIxOTE0NjhiYS00M2RkLTQwYTYtYmNjNC0zYTNjOWFjYmNiOGQiLCJ1c2VybmFtZSI6ImpvaG4tZG9lLUtZMmJqOCJ9.cxrccFEywCfrlhUC_njgdbL_gUAT_gV84qQxxZ7XO6A
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDkyOTQ1MjUsInVzZXJfaWQiOiI1MDNmNThlYS0xYTAxLTQzYjktODdjYy0xNjY4ZDU2NDJiYTciLCJ1c2VybmFtZSI6InRlc3QtY2xpZW50In0.mfkUCFo7sDEM07VoA7e9OcJFbO9G1wbjf_HD5OE8rxY
+
+wscat -c ws://127.0.0.1:8000/api/v3/ws/notifications -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDkyODQ5MzcsInVzZXJfaWQiOiIxOTE0NjhiYS00M2RkLTQwYTYtYmNjNC0zYTNjOWFjYmNiOGQiLCJ1c2VybmFtZSI6ImpvaG4tZG9lLUtZMmJqOCJ9.cxrccFEywCfrlhUC_njgdbL_gUAT_gV84qQxxZ7XO6A"
+wscat -c ws://127.0.0.1:8000/api/v3/ws/notifications -H "Authorization: socialnet_fastapi_socket_secret_NKyQLyr8OjSa5gMfsMMRMWw5g16oIgV4xOboj0kQdBzRMjdX7ibUAnA23EE9eqCKmaof6LEEsCmLbEd7zkLdlhUyzNv5JOprs1hw"
+
+wscat -c ws://127.0.0.1:8000/api/v3/ws/chats/dfb3b022-43fd-49f6-98e8-49603328eb4b -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDkyODQ5MzcsInVzZXJfaWQiOiIxOTE0NjhiYS00M2RkLTQwYTYtYmNjNC0zYTNjOWFjYmNiOGQiLCJ1c2VybmFtZSI6ImpvaG4tZG9lLUtZMmJqOCJ9.cxrccFEywCfrlhUC_njgdbL_gUAT_gV84qQxxZ7XO6A"
+wscat -c ws://127.0.0.1:8000/api/v3/ws/chats/dfb3b022-43fd-49f6-98e8-49603328eb4b -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDkyOTQ1MjUsInVzZXJfaWQiOiI1MDNmNThlYS0xYTAxLTQzYjktODdjYy0xNjY4ZDU2NDJiYTciLCJ1c2VybmFtZSI6InRlc3QtY2xpZW50In0.mfkUCFo7sDEM07VoA7e9OcJFbO9G1wbjf_HD5OE8rxY"
+{"id": "1377f24c-7749-46f6-af91-e16d6df1ce02", "status": "CREATED"}
+{"id": "1377f24c-7749-46f6-af91-e16d6df1ce02", "status": "DELETED"}
+wscat -c ws://127.0.0.1:8000/api/v3/ws/chats/44ddac7f-5e92-4cd7-aed0-49d6329c0f47 -H "Authorization: socialnet_fastapi_socket_secret_NKyQLyr8OjSa5gMfsMMRMWw5g16oIgV4xOboj0kQdBzRMjdX7ibUAnA23EE9eqCKmaof6LEEsCmLbEd7zkLdlhUyzNv5JOprs1hw"
