@@ -1,4 +1,4 @@
-from litestar import Controller, get, post
+from litestar import Controller, get
 from app.api.schemas.general import (
     SiteDetailResponseSchema,
 )
