@@ -4,7 +4,7 @@ from litestar import (
 from litestar.openapi import OpenAPIConfig, OpenAPIController
 from litestar.config.cors import CORSConfig 
 from litestar.middleware.rate_limit import RateLimitConfig
-from pydantic_openapi_schema.v3_1_0 import Components, SecurityScheme
+from litestar.openapi.spec import Components, SecurityScheme
 
 from app.core.config import settings
 from app.common.exception_handlers import exc_handlers
@@ -39,7 +39,7 @@ openapi_config = OpenAPIConfig(
     """,
     security=[{"BearerToken": []}],
     components=Components(
-        securitySchemes={
+        security_schemes={
             "BearerToken": SecurityScheme(
                 type="http",
                 scheme="bearer",

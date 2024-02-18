@@ -18,7 +18,7 @@ show-logs:
 	docker-compose logs
 
 serv:
-	uvicorn app.main:app --reload
+	litestar run --reload
 
 init-db:
 	aerich init-db

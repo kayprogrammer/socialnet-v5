@@ -1,6 +1,6 @@
-from pydantic import BaseModel, validator, Field, EmailStr
+from pydantic import validator, Field, EmailStr
 
-from .base import ResponseSchema
+from .base import BaseModel, ResponseSchema
 
 
 # Site Details
@@ -13,9 +13,6 @@ class SiteDetailDataSchema(BaseModel):
     tw: str
     wh: str
     ig: str
-
-    class Config:
-        orm_mode = True
 
 
 class SiteDetailResponseSchema(ResponseSchema):

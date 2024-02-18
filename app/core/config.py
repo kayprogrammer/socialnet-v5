@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import AnyUrl, EmailStr, validator
 from pydantic_settings import BaseSettings
@@ -10,7 +10,6 @@ PROJECT_DIR = Path(__file__).parent.parent.parent
 class Settings(BaseSettings):
     # DEBUG
     DEBUG: bool
-    ENVIRONMENT: Literal["development", "testing", "production"]
 
     # TOKENS
     EMAIL_OTP_EXPIRE_SECONDS: int
@@ -28,7 +27,6 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: Union[List, str]
 
     # POSTGRESQL
-    PICCOLO_CONF: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_SERVER: str
