@@ -9,6 +9,7 @@ from pydantic_openapi_schema.v3_1_0 import Components, SecurityScheme
 from app.core.config import settings
 from app.common.exception_handlers import exc_handlers
 from app.api.routers import all_routers
+from app.db.config import init_tortoise, shutdown_tortoise
 
 
 class MyOpenAPIController(OpenAPIController):
@@ -60,4 +61,6 @@ app = Litestar(
     middleware=[rate_limit_config.middleware],
     exception_handlers=exc_handlers,
     cors_config=cors_config,
+    on_startup=[init_tortoise],
+    on_shutdown=[shutdown_tortoise]
 )

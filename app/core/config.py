@@ -71,7 +71,7 @@ class Settings(BaseSettings):
             postgres_server = "localhost"
 
         return str(AnyUrl.build(
-            scheme="postgresql",
+            scheme="postgres",
             username=values.get("POSTGRES_USER"),
             password=values.get("POSTGRES_PASSWORD"),
             host=postgres_server,

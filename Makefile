@@ -20,14 +20,15 @@ show-logs:
 serv:
 	uvicorn app.main:app --reload
 
-mmig: ## Run migrations. Use "make mmig app='app'" or "make mmig app='app' message='App migrated'"
-	piccolo migrations new ${app} --auto ${if $(message),--desc=${message}}
+init-db:
+	aerich init-db
 
-mmig_pic: # create migrations for original piccolo user
-	piccolo migrations forwards user && piccolo migrations forwards session_auth
+mmig: ## Run migrations. Use "make mmig" or "make mmig message='App migrated'"
+	aerich migrate ${if $(message),--name ${message}}
+
 
 mig:
-	piccolo migrations forwards all
+	aerich upgrade
 
 init:
 	python initials/initial_data.py

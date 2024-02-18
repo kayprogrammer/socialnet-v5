@@ -4,7 +4,7 @@ from .base import BaseModel
 
 class SiteDetail(BaseModel):
     name = fields.CharField(max_length=300, default="SocialNet")
-    email = fields.CharField(default="kayprogrammer1@gmail.com")
+    email = fields.CharField(max_length=1000, default="kayprogrammer1@gmail.com")
     phone = fields.CharField(max_length=300, default="+2348133831036")
     address = fields.CharField(max_length=300, default="234, Lagos, Nigeria")
     fb = fields.CharField(max_length=300, default="https://facebook.com")
