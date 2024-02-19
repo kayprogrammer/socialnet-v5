@@ -1,4 +1,3 @@
-from litestar import Litestar
 from app.core.config import settings
 from tortoise import Tortoise
 from tortoise.connection import connections
@@ -10,6 +9,7 @@ TORTOISE_ORM = {
             "models": [
                 "app.db.models.base",
                 "app.db.models.general",
+                "app.db.models.accounts",
                 "aerich.models"
             ],
             "default_connection": "default",
