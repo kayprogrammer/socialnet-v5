@@ -1,8 +1,11 @@
-from datetime import datetime
-import random
+from app.api.utils.tools import generate_random_alphanumeric_string
 from app.core.config import settings
+from app.core.security import get_password_hash
 from tortoise import fields
 from app.db.models.base import BaseModel
+from datetime import datetime
+from slugify import slugify
+import random
 
 
 class Country(BaseModel):
@@ -55,6 +58,41 @@ class User(BaseModel):
     city = fields.ForeignKeyField("models.City", on_delete=fields.SET_NULL, null=True)
     dob = fields.DatetimeField(null=True)
 
+    @classmethod
+    async def create_user(cls, data):
+        data["password"] = get_password_hash(data["password"])
+        user = await cls.create(**data)
+        return user
+
+    async def save(self, *args, **kwargs):
+        # Generate usename
+        if not self._saved_in_db:
+            self.username = await self.generate_username()
+        return await super().save(*args, **kwargs)
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def __str__(self):
+        return self.full_name
+
+    async def generate_username(self):
+        username = self.username
+        slugified_name = slugify(self.full_name)
+        unique_username = username or slugified_name
+        obj = await User.get_or_none(username=unique_username)
+        if obj:  # username already taken
+            # Make it unique and re-run the function
+            unique_username = (
+                f"{unique_username}-{generate_random_alphanumeric_string()}"
+            )
+            self.username = unique_username
+            return await self.generate_username()
+        return unique_username
+
+
 class Otp(BaseModel):
     user = fields.ForeignKeyField("models.User", unique=True)
     code = fields.IntField()
@@ -67,7 +105,9 @@ class Otp(BaseModel):
         return False
 
     @classmethod
-    async def get_or_create(cls, user_id):
+    async def update_or_create(cls, user_id):
         code = random.randint(100000, 999999)
-        otp = await super().get_or_create(user_id=user_id, defaults={"code": code})
+        otp, created = await super().update_or_create(
+            user_id=user_id, defaults={"code": code}
+        )
         return otp

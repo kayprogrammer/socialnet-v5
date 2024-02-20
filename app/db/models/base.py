@@ -1,5 +1,6 @@
 from tortoise import Model, fields
 
+
 class BaseModel(Model):
     id = fields.UUIDField(auto_generate=True, unique=True, pk=True)
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -7,6 +8,7 @@ class BaseModel(Model):
 
     class Meta:
         abstract = True
+
 
 class File(BaseModel):
     resource_type = fields.CharField(max_length=20)

@@ -1,4 +1,3 @@
-from typing import Optional, Union
 from litestar import Controller, get, post
 
 from app.api.schemas.auth import (
@@ -11,13 +10,13 @@ from app.api.schemas.auth import (
     RegisterResponseSchema,
     TokensResponseSchema,
 )
-from app.common.exception_handlers import RequestError
+from app.common.exception_handlers import ErrorCode, RequestError
 from app.api.schemas.base import ResponseSchema
 
 from app.api.utils.emails import send_email
-from app.core.security import verify_password
+from app.core.security import get_password_hash, verify_password
 from app.api.utils.auth import Authentication
-from app.db.models.base import GuestUser
+from app.db.models.accounts import Otp, User
 
 
 class RegisterView(Controller):
@@ -27,23 +26,22 @@ class RegisterView(Controller):
         summary="Register a new user",
         description="This endpoint registers new users into our application",
     )
-    async def register(
-        self, data: RegisterUserSchema, db: AsyncSession
-    ) -> RegisterResponseSchema:
+    async def register(self, data: RegisterUserSchema) -> RegisterResponseSchema:
         # Check for existing user
-        existing_user = await user_manager.get_by_email(db, data.email)
+        existing_user = await User.get_or_none(email=data.email)
         if existing_user:
             raise RequestError(
+                err_code=ErrorCode.INVALID_ENTRY,
                 err_msg="Invalid Entry",
                 status_code=422,
                 data={"email": "Email already registered!"},
             )
 
         # Create user
-        user = await user_manager.create(db, data.dict())
+        user = await User.create_user(data.dict())
 
         # Send verification email
-        await send_email(db, user, "activate")
+        await send_email(user, "activate")
 
         return RegisterResponseSchema(
             message="Registration successful", data={"email": user.email}
@@ -58,27 +56,35 @@ class VerifyEmailView(Controller):
         description="This endpoint verifies a user's email",
         status_code=200,
     )
-    async def verify_email(
-        self, data: VerifyOtpSchema, db: AsyncSession
-    ) -> ResponseSchema:
-        user_by_email = await user_manager.get_by_email(db, data.email)
+    async def verify_email(self, data: VerifyOtpSchema) -> ResponseSchema:
+        user_by_email = await User.get_or_none(email=data.email)
 
         if not user_by_email:
-            raise RequestError(err_msg="Incorrect Email", status_code=404)
+            raise RequestError(
+                err_code=ErrorCode.INCORRECT_EMAIL,
+                err_msg="Incorrect Email",
+                status_code=404,
+            )
 
         if user_by_email.is_email_verified:
             return ResponseSchema(message="Email already verified")
 
-        otp = await otp_manager.get_by_user_id(db, user_by_email.id)
+        otp = await Otp.get_or_none(user_id=user_by_email.id)
         if not otp or otp.code != data.otp:
-            raise RequestError(err_msg="Incorrect Otp", status_code=404)
+            raise RequestError(
+                err_code=ErrorCode.INCORRECT_OTP,
+                err_msg="Incorrect Otp",
+                status_code=404,
+            )
         if otp.check_expiration():
+            err_code = (ErrorCode.EXPIRED_OTP,)
             raise RequestError(err_msg="Expired Otp")
 
-        user = await user_manager.update(db, user_by_email, {"is_email_verified": True})
-        await otp_manager.delete(db, otp)
+        user_by_email.is_email_verified = True
+        await user_by_email.save()
+        await otp.delete()
         # Send welcome email
-        await send_email(db, user, "welcome")
+        await send_email(user_by_email, "welcome")
         return ResponseSchema(message="Account verification successful")
 
 
@@ -90,18 +96,19 @@ class ResendVerificationEmailView(Controller):
         description="This endpoint resends new otp to the user's email",
         status_code=200,
     )
-    async def resend_verification_email(
-        self, data: RequestOtpSchema, db: AsyncSession
-    ) -> ResponseSchema:
-        user_by_email = await user_manager.get_by_email(db, data.email)
+    async def resend_verification_email(self, data: RequestOtpSchema) -> ResponseSchema:
+        user_by_email = await User.get_or_none(email=data.email)
         if not user_by_email:
-            raise RequestError(err_msg="Incorrect Email", status_code=404)
+            raise RequestError(
+                err_code=ErrorCode.INCORRECT_EMAIL,
+                err_msg="Incorrect Email",
+                status_code=404,
+            )
         if user_by_email.is_email_verified:
             return ResponseSchema(message="Email already verified")
 
         # Send verification email
-        await send_email(db, user_by_email, "activate")
-
+        await send_email(user_by_email, "activate")
         return ResponseSchema(message="Verification email sent")
 
 
@@ -113,16 +120,17 @@ class SendPasswordResetOtpView(Controller):
         description="This endpoint sends new password reset otp to the user's email",
         status_code=200,
     )
-    async def send_password_reset_otp(
-        self, data: RequestOtpSchema, db: AsyncSession
-    ) -> ResponseSchema:
-        user_by_email = await user_manager.get_by_email(db, data.email)
+    async def send_password_reset_otp(self, data: RequestOtpSchema) -> ResponseSchema:
+        user_by_email = await User.get_or_none(email=data.email)
         if not user_by_email:
-            raise RequestError(err_msg="Incorrect Email", status_code=404)
+            raise RequestError(
+                err_code=ErrorCode.INCORRECT_EMAIL,
+                err_msg="Incorrect Email",
+                status_code=404,
+            )
 
         # Send password reset email
-        await send_email(db, user_by_email, "reset")
-
+        await send_email(user_by_email, "reset")
         return ResponseSchema(message="Password otp sent")
 
 
@@ -134,29 +142,34 @@ class SetNewPasswordView(Controller):
         description="This endpoint verifies the password reset otp",
         status_code=200,
     )
-    async def set_new_password(
-        self, data: SetNewPasswordSchema, db: AsyncSession
-    ) -> ResponseSchema:
+    async def set_new_password(self, data: SetNewPasswordSchema) -> ResponseSchema:
         email = data.email
         otp_code = data.otp
         password = data.password
 
-        user_by_email = await user_manager.get_by_email(db, email)
+        user_by_email = await User.get_or_none(email=email)
         if not user_by_email:
-            raise RequestError(err_msg="Incorrect Email", status_code=404)
+            raise RequestError(
+                err_code=ErrorCode.INCORRECT_EMAIL,
+                err_msg="Incorrect Email",
+                status_code=404,
+            )
 
-        otp = await otp_manager.get_by_user_id(db, user_by_email.id)
+        otp = await Otp.get_or_none(user_id=user_by_email.id)
         if not otp or otp.code != otp_code:
-            raise RequestError(err_msg="Incorrect Otp", status_code=404)
+            raise RequestError(
+                err_code=ErrorCode.INCORRECT_OTP,
+                err_msg="Incorrect Otp",
+                status_code=404,
+            )
 
         if otp.check_expiration():
-            raise RequestError(err_msg="Expired Otp")
+            raise RequestError(err_code=ErrorCode.EXPIRED_OTP, err_msg="Expired Otp")
 
-        await user_manager.update(db, user_by_email, {"password": password})
-
+        user_by_email.password = get_password_hash(password)
+        await user_by_email.save()
         # Send password reset success email
-        await send_email(db, user_by_email, "reset-success")
-
+        await send_email(user_by_email, "reset-success")
         return ResponseSchema(message="Password reset successful")
 
 
@@ -170,43 +183,33 @@ class LoginView(Controller):
     async def login(
         self,
         data: LoginUserSchema,
-        client: Optional[Union["User", "GuestUser"]],
-        db: AsyncSession,
     ) -> TokensResponseSchema:
         email = data.email
         plain_password = data.password
-        user = await user_manager.get_by_email(db, email)
+        user = await User.get_or_none(email=email)
         if not user or verify_password(plain_password, user.password) == False:
-            raise RequestError(err_msg="Invalid credentials", status_code=401)
+            raise RequestError(
+                err_code=ErrorCode.INVALID_CREDENTIALS,
+                err_msg="Invalid credentials",
+                status_code=401,
+            )
 
         if not user.is_email_verified:
-            raise RequestError(err_msg="Verify your email first", status_code=401)
-        await jwt_manager.delete_by_user_id(db, user.id)
+            raise RequestError(
+                err_code=ErrorCode.UNVERIFIED_USER,
+                err_msg="Verify your email first",
+                status_code=401,
+            )
 
-        # Create tokens and store in jwt model
-        access = await Authentication.create_access_token({"user_id": str(user.id)})
-        refresh = await Authentication.create_refresh_token()
-        await jwt_manager.create(
-            db, {"user_id": user.id, "access": access, "refresh": refresh}
+        # Create tokens and update in db
+        user.access_token = await Authentication.create_access_token(
+            {"user_id": str(user.id), "username": user.username}
         )
-
-        # Move all guest user watchlists to the authenticated user watchlists
-        guest_user_watchlists = await watchlist_manager.get_by_session_key(
-            db, client.id if client else None, user.id
-        )
-        if len(guest_user_watchlists) > 0:
-            data_to_create = [
-                {"user_id": user.id, "listing_id": listing_id}.copy()
-                for listing_id in guest_user_watchlists
-            ]
-            await watchlist_manager.bulk_create(db, data_to_create)
-
-        if isinstance(client, GuestUser):
-            # Delete client (Almost like clearing sessions)
-            await guestuser_manager.delete(db, client)
-
+        user.refresh_token = await Authentication.create_refresh_token()
+        await user.save()
         return TokensResponseSchema(
-            message="Login successful", data={"access": access, "refresh": refresh}
+            message="Login successful",
+            data={"access": user.access_token, "refresh": user.refresh_token},
         )
 
 
@@ -217,26 +220,25 @@ class RefreshTokensView(Controller):
         summary="Refresh tokens",
         description="This endpoint refresh tokens by generating new access and refresh tokens for a user",
     )
-    async def refresh(
-        self, data: RefreshTokensSchema, db: AsyncSession
-    ) -> TokensResponseSchema:
+    async def refresh(self, data: RefreshTokensSchema) -> TokensResponseSchema:
         token = data.refresh
-        jwt = await jwt_manager.get_by_refresh(db, token)
-        if not jwt:
-            raise RequestError(err_msg="Refresh token does not exist", status_code=404)
-        if not await Authentication.decode_jwt(token):
+        user = await User.get_or_none(refresh_token=token)
+        if not user or not (await Authentication.decode_jwt(token)):
             raise RequestError(
-                err_msg="Refresh token is invalid or expired", status_code=401
+                err_code=ErrorCode.INVALID_TOKEN,
+                err_msg="Refresh token is invalid or expired",
+                status_code=401,
             )
 
-        access = await Authentication.create_access_token({"user_id": str(jwt.user_id)})
-        refresh = await Authentication.create_refresh_token()
-
-        await jwt_manager.update(db, jwt, {"access": access, "refresh": refresh})
+        user.access_token = await Authentication.create_access_token(
+            {"user_id": str(user.id), "username": user.username}
+        )
+        user.refresh_token = await Authentication.create_refresh_token()
+        await user.save()
 
         return TokensResponseSchema(
             message="Tokens refresh successful",
-            data={"access": access, "refresh": refresh},
+            data={"access": user.access_token, "refresh": user.refresh_token},
         )
 
 
@@ -247,8 +249,9 @@ class LogoutView(Controller):
         summary="Logout a user",
         description="This endpoint logs a user out from our application",
     )
-    async def logout(self, user: User, db: AsyncSession) -> ResponseSchema:
-        await jwt_manager.delete_by_user_id(db, user.id)
+    async def logout(self, user: User) -> ResponseSchema:
+        user.access_token = user.refresh_token = None
+        await user.save()
         return ResponseSchema(message="Logout successful")
 
 

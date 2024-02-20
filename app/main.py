@@ -2,13 +2,13 @@ from litestar import (
     Litestar,
 )
 from litestar.openapi import OpenAPIConfig, OpenAPIController
-from litestar.config.cors import CORSConfig 
+from litestar.config.cors import CORSConfig
 from litestar.middleware.rate_limit import RateLimitConfig
 from litestar.openapi.spec import Components, SecurityScheme
 
 from app.core.config import settings
 from app.common.exception_handlers import exc_handlers
-from app.api.routers import all_routers
+from app.api.routers import base_router
 from app.db.config import init_tortoise, shutdown_tortoise
 
 
@@ -56,11 +56,11 @@ cors_config = CORSConfig(
 )
 
 app = Litestar(
-    route_handlers=all_routers,
+    route_handlers=[base_router],
     openapi_config=openapi_config,
     middleware=[rate_limit_config.middleware],
     exception_handlers=exc_handlers,
     cors_config=cors_config,
     on_startup=[init_tortoise],
-    on_shutdown=[shutdown_tortoise]
+    on_shutdown=[shutdown_tortoise],
 )

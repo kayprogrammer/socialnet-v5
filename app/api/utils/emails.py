@@ -9,7 +9,8 @@ import os
 
 env = Environment(loader=PackageLoader("app", "templates"))
 
-async def sort_email(db, user, email_type):
+
+async def sort_email(user, email_type):
     template_file = "welcome.html"
     subject = "Account verified"
     data = {"template_file": template_file, "subject": subject}
@@ -18,13 +19,13 @@ async def sort_email(db, user, email_type):
     if email_type == "activate":
         template_file = "email-activation.html"
         subject = "Activate your account"
-        otp = Otp.get_or_create(user_id=user.id)
+        otp = await Otp.update_or_create(user_id=user.id)
         data = {"template_file": template_file, "subject": subject, "otp": otp.code}
 
     elif email_type == "reset":
         template_file = "password-reset.html"
         subject = "Reset your password"
-        otp = Otp.get_or_create(user_id=user.id)
+        otp = await Otp.update_or_create(user_id=user.id)
         data = {"template_file": template_file, "subject": subject, "otp": otp.code}
 
     elif email_type == "reset-success":
@@ -35,10 +36,10 @@ async def sort_email(db, user, email_type):
     return data
 
 
-async def send_email(db, user, type):
-    if os.environ["ENVIRONMENT"] == "testing":
+async def send_email(user, type):
+    if os.environ.get("ENVIRONMENT") == "testing":
         return
-    email_data = await sort_email(db, user, type)
+    email_data = await sort_email(user, type)
     template_file = email_data["template_file"]
     subject = email_data["subject"]
 

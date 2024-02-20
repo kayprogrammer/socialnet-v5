@@ -68,15 +68,17 @@ class Settings(BaseSettings):
         if values.get("DEBUG"):
             postgres_server = "localhost"
 
-        return str(AnyUrl.build(
-            scheme="postgres",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=postgres_server,
-            port=values.get("POSTGRES_PORT"),
-            path=values.get('POSTGRES_DB'),
-        ))
-    
+        return str(
+            AnyUrl.build(
+                scheme="postgres",
+                username=values.get("POSTGRES_USER"),
+                password=values.get("POSTGRES_PASSWORD"),
+                host=postgres_server,
+                port=values.get("POSTGRES_PORT"),
+                path=values.get("POSTGRES_DB"),
+            )
+        )
+
     class Config:
         env_file = f"{PROJECT_DIR}/.env"
         case_sensitive = True

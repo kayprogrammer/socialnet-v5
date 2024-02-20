@@ -5,30 +5,22 @@ from .base import ResponseSchema
 
 
 class RegisterUserSchema(BaseModel):
-    first_name: str = Field(..., example=UserExample.first_name)
-    last_name: str = Field(..., example=UserExample.last_name)
+    first_name: str = Field(..., example=UserExample.first_name, max_length=50)
+    last_name: str = Field(..., example=UserExample.last_name, max_length=50)
     email: EmailStr = Field(..., example=UserExample.email)
-    password: str = Field(..., example=UserExample.password)
+    password: str = Field(..., example=UserExample.password, min_length=8)
     terms_agreement: bool
 
     @validator("first_name", "last_name")
     def validate_name(cls, v):
         if len(v.split(" ")) > 1:
             raise ValueError("No spacing allowed")
-        elif len(v) > 50:
-            raise ValueError("50 characters max")
         return v
 
     @validator("terms_agreement")
     def validate_terms_agreement(cls, v):
         if not v:
             raise ValueError("You must agree to terms and conditions")
-        return v
-
-    @validator("password")
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("8 characters min!")
         return v
 
 

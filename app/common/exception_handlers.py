@@ -7,6 +7,29 @@ from litestar import (
 from litestar.exceptions import HTTPException, ValidationException
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 
+from app.api.utils.tools import cut_sentence
+
+
+class ErrorCode:
+    UNAUTHORIZED_USER = "unauthorized_user"
+    NETWORK_FAILURE = "network_failure"
+    SERVER_ERROR = "server_error"
+    INVALID_ENTRY = "invalid_entry"
+    INCORRECT_EMAIL = "incorrect_email"
+    INCORRECT_OTP = "incorrect_otp"
+    EXPIRED_OTP = "expired_otp"
+    INVALID_AUTH = "invalid_auth"
+    INVALID_TOKEN = "invalid_token"
+    INVALID_CREDENTIALS = "invalid_credentials"
+    UNVERIFIED_USER = "unverified_user"
+    NON_EXISTENT = "non_existent"
+    INVALID_OWNER = "invalid_owner"
+    INVALID_PAGE = "invalid_page"
+    INVALID_VALUE = "invalid_value"
+    NOT_ALLOWED = "not_allowed"
+    INVALID_DATA_TYPE = "invalid_data_type"
+    BAD_REQUEST = "bad_request"
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -16,9 +39,15 @@ class Error(Exception):
 
 class RequestError(Error):
     def __init__(
-        self, err_msg: str, status_code: int = 400, data: dict = None, *args: object
+        self,
+        err_code: str,
+        err_msg: str,
+        status_code: int = 400,
+        data: dict = None,
+        *args: object,
     ) -> None:
         self.status_code = HTTPStatus(status_code)
+        self.err_code = err_code
         self.err_msg = err_msg
         self.data = data
 
@@ -28,6 +57,7 @@ class RequestError(Error):
 def request_error_handler(_: Request, exc: RequestError):
     err_dict = {
         "status": "failure",
+        "code": exc.err_code,
         "message": exc.err_msg,
     }
     if exc.data:
@@ -47,12 +77,17 @@ def validation_exception_handler(_: Request, exc: ValidationException) -> Respon
     details = exc.extra
     modified_details = {}
     for error in details:
-        try:
-            field_name = error["loc"][1]
-        except:
-            field_name = error["loc"][0]
-
-        modified_details[f"{field_name}"] = error["msg"]
+        # Modify messages
+        err_msg = error["message"]
+        if err_msg.startswith("Value error,"):
+            err_msg = err_msg[13:]
+        at_most = "at most"
+        at_least = "at least"
+        if at_most in err_msg:
+            err_msg = f"{cut_sentence(err_msg, at_most)} max"
+        elif at_least in err_msg:
+            err_msg = f"{cut_sentence(err_msg, at_least)} min"
+        modified_details[error["key"]] = err_msg
     return Response(
         status_code=status_codes.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
