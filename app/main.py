@@ -20,7 +20,7 @@ openapi_config = OpenAPIConfig(
     title=settings.PROJECT_NAME,
     version="5.0.0",
     description="""
-        A simple Social Networking API built with FastAPI & Piccolo ORM
+        A simple Social Networking API built with Litestar & Tortoise ORM
 
         WEBSOCKETS:
             Notifications: 

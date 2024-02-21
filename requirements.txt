@@ -4,7 +4,7 @@ annotated-types==0.6.0
 anyio==4.2.0
 async-timeout==4.0.3
 asyncpg==0.29.0
-bcrypt==4.1.2
+bcrypt==4.0.1
 certifi==2024.2.2
 click==8.1.7
 cloudinary==1.38.0
@@ -44,6 +44,7 @@ PyJWT==2.8.0
 pypika-tortoise==0.1.6
 pytest==8.0.0
 pytest-asyncio==0.23.5
+pytest-mock==3.12.0
 pytest-postgresql==5.1.0
 python-dateutil==2.8.2
 python-dotenv==1.0.1
