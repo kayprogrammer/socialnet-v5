@@ -9,7 +9,7 @@ from litestar.openapi.spec import Components, SecurityScheme
 from app.core.config import settings
 from app.common.exception_handlers import exc_handlers
 from app.api.routers import base_router
-from app.db.config import init_tortoise, shutdown_tortoise
+from app.db.config import lifespan
 
 
 class MyOpenAPIController(OpenAPIController):
@@ -61,6 +61,5 @@ app = Litestar(
     middleware=[rate_limit_config.middleware],
     exception_handlers=exc_handlers,
     cors_config=cors_config,
-    on_startup=[init_tortoise],
-    on_shutdown=[shutdown_tortoise],
+    lifespan=[lifespan],
 )
