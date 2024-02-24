@@ -3,6 +3,7 @@ from app.api.utils.notification import get_notification_message
 from app.db.models.accounts import User
 from app.db.models.base import BaseModel
 from tortoise import fields
+from tortoise.functions import Min, Max
 
 class RequestStatusChoices(Enum):
     PENDING = "PENDING"
@@ -19,12 +20,8 @@ class Friend(BaseModel):
             f"{self.requester.full_name} & {self.requestee.full_name} --- {self.status}"
         )
 
-    # So I'm supposed to do some bidirectional composite unique constraints somewhere around here but piccolo
-    # has no provision currently for that (at least this  version) except by writing raw sql
-    # in your migration files which is something I don't want to do. So I'll just focus on
-    # doing very good validations. But there will be no db level constraints
-    # I'll surely update this when they've updated the orm
-
+    class Meta:
+        unique_together = (Min("requester", "requestee"), Max("requester", "requestee"))
 
 class NotificationTypeChoices(Enum):
     REACTION = "REACTION"

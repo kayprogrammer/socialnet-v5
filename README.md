@@ -2,7 +2,7 @@
 A Social Networking API built with Litestar and Tortoise ORM
 
 
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/fastapi.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-v5/blob/main/display/litestar.svg?raw=true)
 
 
 #### FASTAPI DOCS: [Documentation](https://fastapi.tiangolo.com/)
