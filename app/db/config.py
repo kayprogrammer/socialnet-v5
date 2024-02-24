@@ -8,6 +8,8 @@ MODELS = [
     "app.db.models.base",
     "app.db.models.general",
     "app.db.models.accounts",
+    "app.db.models.feed",
+    "app.db.models.profiles",
 ]
 
 TORTOISE_ORM = {

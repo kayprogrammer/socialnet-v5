@@ -1,69 +1,48 @@
 from app.core.config import settings
-from app.models.accounts.tables import User
-from app.models.general.tables import SiteDetail
-from piccolo.apps.user.tables import BaseUser
+from app.db.models.accounts import User
+from app.db.models.feed import Post
+from app.db.models.general import SiteDetail
 
 
 class CreateData(object):
     async def initialize(self) -> None:
         await self.create_superuser()
-        await self.create_client()
+        client_user = await self.create_client()
         await self.create_sitedetail()
+        await self.create_post(client_user)
 
     async def create_superuser(self) -> None:
-        superuser = await User.objects().get(
-            User.email == settings.FIRST_SUPERUSER_EMAIL
-        )
         user_dict = {
             "first_name": "Test",
             "last_name": "Admin",
-            "email": settings.FIRST_SUPERUSER_EMAIL,
             "password": settings.FIRST_SUPERUSER_PASSWORD,
             "admin": True,
             "superuser": True,
             "is_email_verified": True,
         }
-        if not superuser:
-            superuser = await User.create_user(**user_dict)
-
-        # For piccolo admin
-        username = "testadmin"
-        piccolo_admin_superuser = (
-            await BaseUser.objects()
-            .where(
-                (BaseUser.username == username)
-                | (BaseUser.email == settings.FIRST_SUPERUSER_EMAIL)
-            )
-            .first()
+        superuser = await User.get_or_create(
+            email=settings.FIRST_SUPERUSER_EMAIL, defaults=user_dict
         )
-        if not piccolo_admin_superuser:
-            superuser = await BaseUser.create_user(
-                first_name=user_dict["first_name"],
-                last_name=user_dict["last_name"],
-                username=username,
-                email=settings.FIRST_SUPERUSER_EMAIL,
-                password=settings.FIRST_SUPERUSER_PASSWORD,
-                active=True,
-                superuser=True,
-                admin=True,
-            )
         return superuser
 
     async def create_client(self) -> None:
-        client = await User.objects().get(User.email == settings.FIRST_CLIENT_EMAIL)
         user_dict = {
             "first_name": "Test",
             "last_name": "Client",
-            "email": settings.FIRST_CLIENT_EMAIL,
             "password": settings.FIRST_CLIENT_PASSWORD,
             "is_email_verified": True,
         }
-        if not client:
-            client = await User.create_user(**user_dict)
+        client = await User.get_or_create(
+            email=settings.FIRST_CLIENT_EMAIL, defaults=user_dict
+        )
         return client
 
     async def create_sitedetail(self) -> None:
-        sitedetail = await SiteDetail.objects().first()
-        if not sitedetail:
-            sitedetail = await SiteDetail.objects().create()
+        sitedetail, created = await SiteDetail.get_or_create()
         return sitedetail
+
+    async def create_post(self, client_user) -> None:
+        post, created = await Post.get_or_create(
+            author=client_user, text="This is the first post"
+        )
+        return post

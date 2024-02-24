@@ -59,6 +59,14 @@ class User(BaseModel):
     dob = fields.DatetimeField(null=True)
 
     @classmethod
+    async def get_or_create(cls, defaults, **kwargs):
+        user = await cls.get_or_none(**kwargs)
+        if not user:
+            defaults.update(kwargs)
+            user = await cls.create_user(defaults)
+        return user
+
+    @classmethod
     async def create_user(cls, data):
         data["password"] = get_password_hash(data["password"])
         user = await cls.create(**data)
