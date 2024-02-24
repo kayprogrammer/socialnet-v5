@@ -50,5 +50,5 @@ class Authentication:
             return None
         user = await User.get_or_none(
             id=decoded["user_id"], access_token=token
-        ).select_related("city", "city__region", "city__region__country", "avatar")
+        ).select_related("city", "city__region", "city__country", "avatar")
         return user

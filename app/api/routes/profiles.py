@@ -25,18 +25,16 @@ paginator = Paginator()
 
 
 def get_users_queryset(current_user):
-    users = User.annotate(city_name=F("city__name")).select_related("avatar")
+    users = User.all().select_related("avatar", "city", "city__region")
     if current_user:
         users = users.exclude(id=current_user.id)
-        if current_user.city:
-            # Order by the current user region or country
-            city = current_user.city
-            region = city.region.name if city.region else None
-            country = city.country.name
+        city = current_user.city
+        if city:
+            # Order by city, region, or country similar with that of the current user
+            region = city.region
+            country = city.country
             order_by_val = (
-                Q(city__region__name=region)
-                if region
-                else Q(city__country__name=country)
+                Q(city__region=region.id) if region else Q(city__country=country.id)
             )
 
             users = users.annotate(
@@ -46,7 +44,7 @@ def get_users_queryset(current_user):
                 )
             ).annotate(
                 has_city=Case(
-                    When(city__isnull=False, then=True),
+                    When(city=city.id, then=True),
                     default=False,
                 )
             )
@@ -55,17 +53,17 @@ def get_users_queryset(current_user):
     return users
 
 
-class RetrieveUserView(Controller):
+class RetrieveUsersView(Controller):
     @get(
         summary="Retrieve Users",
         description="This endpoint retrieves a paginated list of users",
     )
     async def retrieve_users(
-        client: Optional[User], page: int = 1
+        self, client: Optional[User], page: int = 1
     ) -> ProfilesResponseSchema:
         users = get_users_queryset(client)
         paginated_data = await paginator.paginate_queryset(users, page)
-        return ProfileResponseSchema(message="Users fetched", data=paginated_data)
+        return ProfilesResponseSchema(message="Users fetched", data=paginated_data)
 
 
 class RetrieveCitiesView(Controller):
@@ -75,14 +73,14 @@ class RetrieveCitiesView(Controller):
         summary="Retrieve Cities based on query params",
         description="This endpoint retrieves the first 10 cities that matches the query params",
     )
-    async def retrieve_cities(name: Optional[str]) -> CitiesResponseSchema:
+    async def retrieve_cities(self, name: Optional[str]) -> CitiesResponseSchema:
         cities = []
         message = "Cities Fetched"
         if name:
             name = re.sub(r"[^\w\s]", "", name)  # Remove special chars
             cities = (
-                await City.select_related("city", "city__region", "city__country")
-                .filter(city__name__icontains=name)
+                await City.filter(name__icontains=name)
+                .select_related("region", "country")
                 .limit(10)
             )
         if not cities:
@@ -373,6 +371,6 @@ class RetrieveCitiesView(Controller):
 #     return {"message": resp_message}
 
 profiles_handlers = [
-    RetrieveUserView,
+    RetrieveUsersView,
     RetrieveCitiesView,
 ]

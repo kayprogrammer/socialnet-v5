@@ -17,8 +17,8 @@ from app.api.utils.validators import validate_image_type
 class CitySchema(BaseModel):
     id: UUID
     name: str
-    region: str
-    country: str
+    region: str = Field(..., alias="region_name")
+    country: str = Field(..., alias="country_name")
 
 
 class CitiesResponseSchema(ResponseSchema):
@@ -30,14 +30,12 @@ class ProfileSchema(BaseModel):
     last_name: str = Field(..., example="Doe")
     username: str = Field(..., example="john-doe")
     email: EmailStr = Field(..., example="johndoe@email.com")
-    get_avatar: Optional[str] = Field(
-        ..., example="https://img.com", serialization_alias="avatar"
-    )
+    avatar: Optional[str] = Field(..., example="https://img.com", alias="get_avatar")
     bio: Optional[str] = Field(
         ..., example="Software Engineer | Django Ninja Developer"
     )
     dob: Optional[date]
-    city_name: Optional[str] = Field(..., example="Lagos", serialization_alias="city")
+    city: Optional[str] = Field(..., example="Lagos", alias="city_name")
     created_at: datetime
     updated_at: datetime
 
@@ -65,7 +63,7 @@ class DeleteUserSchema(BaseModel):
 
 
 class ProfilesResponseDataSchema(PaginatedResponseDataSchema):
-    items: List[ProfileSchema] = Field(..., serialization_alias="users")
+    users: List[ProfileSchema] = Field(..., alias="items")
 
 
 class ProfilesResponseSchema(ResponseSchema):
@@ -77,7 +75,7 @@ class ProfileResponseSchema(ResponseSchema):
 
 
 class ProfileUpdateResponseDataSchema(ProfileSchema):
-    get_avatar: Optional[Any] = Field(..., exclude=True, hidden=True)
+    avatar: Optional[Any] = Field(..., exclude=True, hidden=True)
     image_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
     file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
@@ -133,7 +131,7 @@ class ReadNotificationSchema(BaseModel):
 
 
 class NotificationsResponseDataSchema(PaginatedResponseDataSchema):
-    items: List[NotificationSchema] = Field(..., serialization_alias="notifications")
+    notifications: List[NotificationSchema] = Field(..., alias="items")
 
 
 class NotificationsResponseSchema(ResponseSchema):

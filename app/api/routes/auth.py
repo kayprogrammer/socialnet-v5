@@ -38,7 +38,7 @@ class RegisterView(Controller):
             )
 
         # Create user
-        user = await User.create_user(data.dict())
+        user = await User.create_user(data.model_dump())
 
         # Send verification email
         await send_email(user, "activate")

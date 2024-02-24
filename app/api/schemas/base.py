@@ -12,7 +12,6 @@ class BaseModel(OriginalBaseModel):
     class Config:
         arbitrary_types_allowed = True
         from_attributes = True
-        populate_by_name = True
 
         @staticmethod
         def json_schema_extra(schema: dict, _):

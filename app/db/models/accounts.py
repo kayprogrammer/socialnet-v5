@@ -1,3 +1,4 @@
+from app.api.utils.file_processors import FileProcessor
 from app.api.utils.tools import generate_random_alphanumeric_string
 from app.core.config import settings
 from app.core.security import get_password_hash
@@ -20,7 +21,7 @@ class Region(BaseModel):
 
 class City(BaseModel):
     name = fields.CharField(max_length=100)
-    region = fields.ForeignKeyField("models.Region", related_name="cities")
+    region = fields.ForeignKeyField("models.Region", related_name="cities", null=True)
     country = fields.ForeignKeyField("models.Country", related_name="cities")
 
     def __str__(self):
@@ -98,6 +99,22 @@ class User(BaseModel):
             self.username = unique_username
             return await self.generate_username()
         return unique_username
+
+    @property
+    def get_avatar(self):
+        avatar = self.avatar
+        if avatar:
+            return FileProcessor.generate_file_url(
+                key=avatar.id,
+                folder="avatars",
+                content_type=avatar.resource_type,
+            )
+        return None
+
+    @property
+    def city_name(self):
+        city = self.city
+        return city.name if city else None
 
 
 class Otp(BaseModel):
