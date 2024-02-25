@@ -1,5 +1,6 @@
 from typing import Optional
 from litestar import Controller, get, post, put, patch
+from app.core.security import verify_password
 from app.db.models.accounts import City, User
 from app.api.schemas.base import ResponseSchema
 from app.api.schemas.profiles import (
@@ -20,6 +21,8 @@ from app.api.utils.tools import set_dict_attr
 from app.common.exception_handlers import ErrorCode, RequestError
 from tortoise.expressions import Q, F, Case, When
 import re
+
+from app.db.models.base import File
 
 paginator = Paginator()
 
@@ -88,94 +91,92 @@ class RetrieveCitiesView(Controller):
         return CitiesResponseSchema(message=message, data=cities)
 
 
-# @router.get(
-#     "/profile/{username}",
-#     summary="Retrieve user's profile",
-#     description="This endpoint retrieves a particular user profile",
-# )
-# async def retrieve_user_profile(username: str) -> ProfileResponseSchema:
-#     user = await User.objects(User.avatar, User.city).get(User.username == username)
-#     if not user:
-#         raise RequestError(
-#             err_code=ErrorCode.NON_EXISTENT,
-#             err_msg="No user with that username",
-#             status_code=404,
-#         )
-#     return {"message": "User details fetched", "data": user}
+class UserProfileView(Controller):
+    path = "/profile"
+
+    @get(
+        "/{username:str}",
+        summary="Retrieve user's profile",
+        description="This endpoint retrieves a particular user profile",
+    )
+    async def retrieve_user_profile(self, username: str) -> ProfileResponseSchema:
+        user = await User.get_or_none(username=username).select_related(
+            "avatar", "city"
+        )
+        if not user:
+            raise RequestError(
+                err_code=ErrorCode.NON_EXISTENT,
+                err_msg="No user with that username",
+                status_code=404,
+            )
+        return ProfileResponseSchema(message="User details fetched", data=user)
+
+    @patch(
+        summary="Update user's profile",
+        description=f"""
+            This endpoint updates a particular user profile
+            ALLOWED FILE TYPES: {", ".join(ALLOWED_IMAGE_TYPES)}
+        """,
+    )
+    async def update_profile(
+        self, data: ProfileUpdateSchema, user: User
+    ) -> ProfileUpdateResponseSchema:
+        data = data.model_dump(exclude_none=True)
+        # Validate City ID Entry
+        city_id = data.pop("city_id", None)
+        city = None
+        if city_id:
+            city = await City.get_or_none(id=city_id)
+            if not city:
+                raise RequestError(
+                    err_code=ErrorCode.INVALID_ENTRY,
+                    err_msg="Invalid Entry",
+                    data={"city_id": "No city with that ID"},
+                    status_code=422,
+                )
+            data["city"] = city_id
+            user.city_name = city.name
+
+        # Handle file upload
+        image_upload_id = False
+        file_type = data.pop("file_type", None)
+        if file_type:
+            # Create or update file object
+            avatar = user.avatar
+            if avatar:
+                avatar.resource_type = file_type
+                await avatar.save()
+            else:
+                avatar = await File.create(resource_type=file_type)
+            image_upload_id = avatar.id
+            data["avatar"] = avatar
+
+        # Set attributes from data to user object
+        user = set_dict_attr(data, user)
+        user.image_upload_id = image_upload_id
+        await user.save()
+        return ProfileUpdateResponseSchema(message="User updated", data=user)
+
+    @post(
+        summary="Delete user's account",
+        description="This endpoint deletes a particular user's account (irreversible)",
+    )
+    async def delete_user(self, data: DeleteUserSchema, user: User) -> ResponseSchema:
+        # Check if password is valid
+        if not verify_password(data.password, user.password):
+            raise RequestError(
+                err_code=ErrorCode.INVALID_CREDENTIALS,
+                err_msg="Invalid Entry",
+                status_code=422,
+                data={"password": "Incorrect password"},
+            )
+
+        # Delete user
+        await user.delete()
+        return ResponseSchema(message="User deleted")
 
 
-# @router.patch(
-#     "/profile",
-#     summary="Update user's profile",
-#     description=f"""
-#         This endpoint updates a particular user profile
-#         ALLOWED FILE TYPES: {", ".join(ALLOWED_IMAGE_TYPES)}
-#     """,
-# )
-# async def update_profile(
-#     data: ProfileUpdateSchema, user: User = Depends(get_current_user)
-# ) -> ProfileUpdateResponseSchema:
-#     data = data.model_dump(exclude_none=True)
-#     # Validate City ID Entry
-#     city_id = data.pop("city_id", None)
-#     city = None
-#     if city_id:
-#         city = await City.objects().get(City.id == city_id)
-#         if not city:
-#             raise RequestError(
-#                 err_code=ErrorCode.INVALID_ENTRY,
-#                 err_msg="Invalid Entry",
-#                 data={"city_id": "No city with that ID"},
-#                 status_code=422,
-#             )
-#         data["city"] = city_id
-
-#     # Handle file upload
-#     image_upload_id = False
-#     file_type = data.pop("file_type", None)
-#     if file_type:
-#         # Create or update file object
-#         avatar = user.avatar
-#         if avatar.id:
-#             avatar.resource_type = file_type
-#             await avatar.save()
-#         else:
-#             avatar = await File.objects().create(resource_type=file_type)
-#         image_upload_id = avatar.id
-#         data["avatar"] = avatar
-
-#     # Set attributes from data to user object
-#     user = set_dict_attr(data, user)
-#     user.image_upload_id = image_upload_id
-#     await user.save()
-#     user.city = city  # Set city to object instead of ID for response sake
-#     return {"message": "User updated", "data": user}
-
-
-# @router.post(
-#     "/profile",
-#     summary="Delete user's account",
-#     description="This endpoint deletes a particular user's account (irreversible)",
-# )
-# async def delete_user(
-#     data: DeleteUserSchema, user: User = Depends(get_current_user)
-# ) -> ResponseSchema:
-#     # Check if password is valid
-#     if not User.check_password(data.password, user.password):
-#         raise RequestError(
-#             err_code=ErrorCode.INVALID_CREDENTIALS,
-#             err_msg="Invalid Entry",
-#             status_code=422,
-#             data={"password": "Incorrect password"},
-#         )
-
-#     # Delete user
-#     await user.remove()
-#     return {"message": "User deleted"}
-
-
-# # FRIENDS
-
+# FRIENDS
 
 # @router.get(
 #     "/friends",
@@ -373,4 +374,5 @@ class RetrieveCitiesView(Controller):
 profiles_handlers = [
     RetrieveUsersView,
     RetrieveCitiesView,
+    UserProfileView,
 ]

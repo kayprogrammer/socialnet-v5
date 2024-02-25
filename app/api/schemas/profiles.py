@@ -41,17 +41,17 @@ class ProfileSchema(BaseModel):
 
 
 class ProfileUpdateSchema(BaseModel):
-    first_name: Optional[str] = Field(None, example="John", max_length=50, min_length=1)
-    last_name: Optional[str] = Field(None, example="Doe", max_length=50, min_length=1)
-    bio: Optional[str] = Field(
+    first_name: str = Field(None, example="John", max_length=50, min_length=1)
+    last_name: str = Field(None, example="Doe", max_length=50, min_length=1)
+    bio: str = Field(
         None,
         example="Software Engineer | Django Ninja Developer",
         max_length=200,
         min_length=1,
     )
-    dob: Optional[date] = None
-    city_id: Optional[UUID] = None
-    file_type: Optional[str] = Field(None, example="image/jpeg")
+    dob: date = None
+    city_id: UUID = None
+    file_type: str = Field(None, example="image/jpeg")
 
     @validator("file_type")
     def validate_img_type(cls, v):
