@@ -10,6 +10,7 @@ MODELS = [
     "app.db.models.accounts",
     "app.db.models.feed",
     "app.db.models.profiles",
+    "app.db.models.chat",
 ]
 
 TORTOISE_ORM = {

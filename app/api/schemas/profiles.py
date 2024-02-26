@@ -111,6 +111,7 @@ class NotificationSchema(BaseModel):
     comment_slug: Optional[str]
     reply_slug: Optional[str]
     is_read: bool = False
+    current_user_id: UUID = None
 
     @validator("sender", pre=True)
     def set_sender(cls, v):

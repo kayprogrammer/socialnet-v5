@@ -1,5 +1,9 @@
 from typing import Optional
-from litestar import Controller, get, post, put, patch
+from litestar import Controller, Response, get, post, put, patch
+from app.api.routes.utils import (
+    get_notifications_queryset,
+    get_requestee_and_friend_obj,
+)
 from app.core.security import verify_password
 from app.db.models.accounts import City, User
 from app.api.schemas.base import ResponseSchema
@@ -19,10 +23,11 @@ from app.api.utils.file_processors import ALLOWED_IMAGE_TYPES
 from app.api.utils.paginators import Paginator
 from app.api.utils.tools import set_dict_attr
 from app.common.exception_handlers import ErrorCode, RequestError
-from tortoise.expressions import Q, F, Case, When
+from tortoise.expressions import Q, Case, When
 import re
 
 from app.db.models.base import File
+from app.db.models.profiles import Friend, Notification
 
 paginator = Paginator()
 
@@ -177,202 +182,196 @@ class UserProfileView(Controller):
 
 
 # FRIENDS
+class FriendsView(Controller):
+    path = "/friends"
 
-# @router.get(
-#     "/friends",
-#     summary="Retrieve Friends",
-#     description="This endpoint retrieves friends of a user",
-# )
-# async def retrieve_friends(
-#     page: int = 1, user: User = Depends(get_current_user)
-# ) -> ProfilesResponseSchema:
-#     friends = await Friend.select(Friend.requester, Friend.requestee).where(
-#         Friend.status == "ACCEPTED",
-#         (Friend.requester == user.id) | (Friend.requestee == user.id),
-#     )
-#     friend_ids = [
-#         friend["requester"] if friend["requester"] != user.id else friend["requestee"]
-#         for friend in friends
-#     ]
-#     friends = []
-#     if friend_ids:
-#         friends = User.objects(User.avatar, User.city).where(User.id.is_in(friend_ids))
+    @get(
+        summary="Retrieve Friends",
+        description="This endpoint retrieves friends of a user",
+    )
+    async def retrieve_friends(
+        self, user: User, page: int = 1
+    ) -> ProfilesResponseSchema:
+        friends = (
+            await Friend.filter(
+                status="ACCEPTED",
+            )
+            .filter(Q(requester_id=user.id) | Q(requestee_id=user.id))
+            .select_related("requester", "requestee")
+        )
+        friend_ids = [
+            friend["requester_id"]
+            if friend["requester_id"] != user.id
+            else friend["requestee_id"]
+            for friend in friends
+        ]
+        friends = []
+        if friend_ids:
+            friends = User.filter(id__in=friend_ids).select_related("avatar", "city")
 
-#     # Return paginated data
-#     paginator.page_size = 20
-#     paginated_data = await paginator.paginate_queryset(friends, page)
-#     return {"message": "Friends fetched", "data": paginated_data}
+        # Return paginated data
+        paginator.page_size = 20
+        paginated_data = await paginator.paginate_queryset(friends, page)
+        return ProfilesResponseSchema(message="Friends fetched", data=paginated_data)
 
+    @get(
+        "/requests",
+        summary="Retrieve Friend Requests",
+        description="This endpoint retrieves friend requests of a user",
+    )
+    async def retrieve_friend_requests(
+        self, user: User, page: int = 1
+    ) -> ProfilesResponseSchema:
+        pending_friend_ids = await Friend.filter(
+            requestee_id=user.id, status="PENDING"
+        ).values_list("requester_id", flat=True)
+        friends = []
+        if pending_friend_ids:
+            friends = User.filter(id__in=pending_friend_ids).select_related(
+                "avatar", "city"
+            )
 
-# @router.get(
-#     "/friends/requests",
-#     summary="Retrieve Friend Requests",
-#     description="This endpoint retrieves friend requests of a user",
-# )
-# async def retrieve_friend_requests(
-#     page: int = 1, user: User = Depends(get_current_user)
-# ) -> ProfilesResponseSchema:
-#     pending_friends = await Friend.select(Friend.requester).where(
-#         Friend.requestee == user.id, Friend.status == "PENDING"
-#     )
-#     pending_friend_ids = [friend["requester"] for friend in pending_friends]
-#     friends = []
-#     if pending_friend_ids:
-#         friends = User.objects(User.avatar, User.city).where(
-#             User.id.is_in(pending_friend_ids)
-#         )
+        # Return paginated data
+        paginator.page_size = 20
+        paginated_data = await paginator.paginate_queryset(friends, page)
+        return ProfilesResponseSchema(
+            message="Friend Requests fetched", data=paginated_data
+        )
 
-#     # Return paginated data
-#     paginator.page_size = 20
-#     paginated_data = await paginator.paginate_queryset(friends, page)
-#     return {"message": "Friend Requests fetched", "data": paginated_data}
+    @post(
+        "/requests",
+        summary="Send Or Delete Friend Request",
+        description="This endpoint sends or delete friend requests",
+    )
+    async def send_or_delete_friend_request(
+        self, data: SendFriendRequestSchema, user: User
+    ) -> ResponseSchema:
+        requestee, friend = await get_requestee_and_friend_obj(user, data.username)
+        message = "Friend Request sent"
+        status_code = 201
+        if friend:
+            status_code = 200
+            message = "Friend Request removed"
+            if friend.status == "ACCEPTED":
+                message = "This user is already your friend"
+            elif user.id != friend.requester:
+                raise RequestError(
+                    err_code=ErrorCode.NOT_ALLOWED,
+                    err_msg="The user already sent you a friend request!",
+                    status_code=403,
+                )
+            else:
+                await friend.delete()
+        else:
+            await Friend.create(requester_id=user.id, requestee_id=requestee.id)
 
+        return Response(
+            ResponseSchema(status="success", message=message), status_code=status_code
+        )
 
-# @router.post(
-#     "/friends/requests",
-#     summary="Send Or Delete Friend Request",
-#     description="This endpoint sends or delete friend requests",
-#     responses={201: {"model": ResponseSchema}, 200: {"model": ResponseSchema}},
-# )
-# async def send_or_delete_friend_request(
-#     data: SendFriendRequestSchema, user: User = Depends(get_current_user)
-# ) -> ResponseSchema:
-#     requestee, friend = await get_requestee_and_friend_obj(user, data.username)
-#     message = "Friend Request sent"
-#     status_code = 201
-#     if friend:
-#         status_code = 200
-#         message = "Friend Request removed"
-#         if friend.status == "ACCEPTED":
-#             message = "This user is already your friend"
-#         elif user.id != friend.requester:
-#             raise RequestError(
-#                 err_code=ErrorCode.NOT_ALLOWED,
-#                 err_msg="The user already sent you a friend request!",
-#                 status_code=403,
-#             )
-#         else:
-#             await friend.remove()
-#     else:
-#         await Friend.objects().create(requester=user.id, requestee=requestee.id)
+    @put(
+        "/requests",
+        summary="Accept Or Reject a Friend Request",
+        description="""
+            This endpoint accepts or reject a friend request
+            accepted choices:
+            - If true, then it was accepted
+            - If false, then it was rejected
+        """,
+    )
+    async def accept_or_reject_friend_request(
+        self, data: AcceptFriendRequestSchema, user: User
+    ) -> ResponseSchema:
+        _, friend = await get_requestee_and_friend_obj(user, data.username, "PENDING")
+        if not friend:
+            raise RequestError(
+                err_code=ErrorCode.NON_EXISTENT,
+                err_msg="No friend request exist between you and that user",
+                status_code=404,
+            )
+        if friend.requester == user.id:
+            raise RequestError(
+                err_code=ErrorCode.NOT_ALLOWED,
+                err_msg="You cannot accept or reject a friend request you sent ",
+                status_code=403,
+            )
 
-#     return JSONResponse(
-#         {"status": "success", "message": message}, status_code=status_code
-#     )
-
-
-# @router.put(
-#     "/friends/requests",
-#     summary="Accept Or Reject a Friend Request",
-#     description="""
-#         This endpoint accepts or reject a friend request
-#         accepted choices:
-#         - If true, then it was accepted
-#         - If false, then it was rejected
-#     """,
-# )
-# async def accept_or_reject_friend_request(
-#     data: AcceptFriendRequestSchema, user: User = Depends(get_current_user)
-# ) -> ResponseSchema:
-#     _, friend = await get_requestee_and_friend_obj(user, data.username, "PENDING")
-#     if not friend:
-#         raise RequestError(
-#             err_code=ErrorCode.NON_EXISTENT,
-#             err_msg="No friend request exist between you and that user",
-#             status_code=404,
-#         )
-#     if friend.requester == user.id:
-#         raise RequestError(
-#             err_code=ErrorCode.NOT_ALLOWED,
-#             err_msg="You cannot accept or reject a friend request you sent ",
-#             status_code=403,
-#         )
-
-#     # Update or delete friend request based on status
-#     accepted = data.accepted
-#     if accepted:
-#         msg = "Accepted"
-#         friend.status = "ACCEPTED"
-#         await friend.save()
-#     else:
-#         msg = "Rejected"
-#         await friend.remove()
-#     return {"message": f"Friend Request {msg}"}
-
-
-# @router.get(
-#     "/notifications",
-#     summary="Retrieve Auth User Notifications",
-#     description="""
-#         This endpoint retrieves a paginated list of auth user's notifications
-#         Note:
-#             - Use post slug to navigate to the post.
-#             - Use comment slug to navigate to the comment.
-#             - Use reply slug to navigate to the reply.
-#     """,
-# )
-# async def retrieve_user_notifications(
-#     page: int = 1, user: User = Depends(get_current_user)
-# ) -> NotificationsResponseSchema:
-#     notifications = get_notifications_queryset(user)
-
-#     # Return paginated data and set is_read to every item
-#     paginated_data = await paginator.paginate_queryset(notifications, page)
-#     items = paginated_data["items"]
-#     for item in items:
-#         item.is_read = True if user.id in item.read_by_ids else False
-#     return {"message": "Notifications fetched", "data": paginated_data}
+        # Update or delete friend request based on status
+        accepted = data.accepted
+        if accepted:
+            msg = "Accepted"
+            friend.status = "ACCEPTED"
+            await friend.save()
+        else:
+            msg = "Rejected"
+            await friend.delete()
+        return ResponseSchema(message=f"Friend Request {msg}")
 
 
-# @router.post(
-#     "/notifications",
-#     summary="Read Notification",
-#     description="""
-#         This endpoint reads a notification
-#     """,
-# )
-# async def read_notification(
-#     data: ReadNotificationSchema, user: User = Depends(get_current_user)
-# ) -> ResponseSchema:
-#     id = data.id
-#     mark_all_as_read = data.mark_all_as_read
+class NotificationsView(Controller):
+    path = "/notifications"
 
-#     resp_message = "Notifications read"
-#     if mark_all_as_read:
-#         notifications = await Notification.select(
-#             Notification.id, Notification.read_by_ids
-#         ).where(Notification.receiver_ids.any(user.id))
-#         notification_ids_to_update = [
-#             notification["id"]
-#             for notification in notifications
-#             if not user.id in notification["read_by_ids"]
-#         ]
-#         # Mark all notifications as read
-#         if len(notification_ids_to_update) > 0:
-#             await Notification.update(
-#                 {Notification.read_by_ids: Notification.read_by_ids + user.id}
-#             ).where(Notification.id.is_in(notification_ids_to_update))
-#     elif id:
-#         # Mark single notification as read
-#         notification = (
-#             await Notification.objects()
-#             .where(Notification.receiver_ids.any(user.id), Notification.id == id)
-#             .first()
-#         )
-#         if not notification:
-#             raise RequestError(
-#                 err_code=ErrorCode.NON_EXISTENT,
-#                 err_msg="User has no notification with that ID",
-#                 status_code=404,
-#             )
-#         if not user.id in notification.read_by_ids:
-#             notification.read_by_ids.append(user.id)
-#             await notification.save()
-#         resp_message = "Notification read"
-#     return {"message": resp_message}
+    @get(
+        summary="Retrieve Auth User Notifications",
+        description="""
+            This endpoint retrieves a paginated list of auth user's notifications
+            Note:
+                - Use post slug to navigate to the post.
+                - Use comment slug to navigate to the comment.
+                - Use reply slug to navigate to the reply.
+        """,
+    )
+    async def retrieve_user_notifications(
+        self, user: User, page: int = 1
+    ) -> NotificationsResponseSchema:
+        notifications = get_notifications_queryset(user)
+
+        # Return paginated data and set is_read to every item
+        paginated_data = await paginator.paginate_queryset(notifications, page)
+        items = paginated_data["items"]
+        for item in items:
+            item.is_read = await item.user_is_read(user.id)
+        return NotificationsResponseSchema(
+            message="Notifications fetched", data=paginated_data
+        )
+
+    @post(
+        summary="Read Notification",
+        description="""
+            This endpoint reads a notification
+        """,
+    )
+    async def read_notification(
+        self, data: ReadNotificationSchema, user: User
+    ) -> ResponseSchema:
+        id = data.id
+        mark_all_as_read = data.mark_all_as_read
+
+        resp_message = "Notifications read"
+        if mark_all_as_read:
+            # Mark all notifications as read
+            notifications = await Notification.filter(receivers__id=user.id)
+            await user.notifications_read.add(*notifications)
+        elif id:
+            # Mark single notification as read
+            notification = await Notification.filter(receivers__id=user.id).get_or_none(
+                id=id
+            )
+            if not notification:
+                raise RequestError(
+                    err_code=ErrorCode.NON_EXISTENT,
+                    err_msg="User has no notification with that ID",
+                    status_code=404,
+                )
+            await notification.read_by.add(user)
+            resp_message = "Notification read"
+        return ResponseSchema(message=resp_message)
+
 
 profiles_handlers = [
     RetrieveUsersView,
     RetrieveCitiesView,
     UserProfileView,
+    FriendsView,
+    NotificationsView,
 ]

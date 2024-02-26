@@ -5,6 +5,8 @@ from app.api.deps import get_current_user, get_current_user_or_guest
 from app.api.routes.general import SiteDetailView
 from app.api.routes.auth import auth_handlers
 from app.api.routes.profiles import profiles_handlers
+from app.api.routes.chat import chat_handlers
+from app.api.routes.feed import feed_handlers
 
 general_router = Router(
     path="/general",
@@ -29,6 +31,31 @@ profiles_router = Router(
     },
 )
 
+chat_router = Router(
+    path="/chats",
+    route_handlers=chat_handlers,
+    tags=["Chats"],
+    dependencies={
+        "user": Provide(get_current_user),
+    },
+)
+
+feed_router = Router(
+    path="/feed",
+    route_handlers=feed_handlers,
+    tags=["Feed"],
+    dependencies={
+        "user": Provide(get_current_user),
+    },
+)
+
 base_router = Router(
-    path="/api/v5", route_handlers=[general_router, auth_router, profiles_router]
+    path="/api/v5",
+    route_handlers=[
+        general_router,
+        auth_router,
+        profiles_router,
+        chat_router,
+        feed_router,
+    ],
 )

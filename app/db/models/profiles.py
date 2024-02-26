@@ -57,6 +57,9 @@ class Notification(BaseModel):
             text = get_notification_message(self)
         return text
 
+    async def user_is_read(self, user_id):
+        return await self.read_by.filter(id=user_id).exists()
+
     # So I'm supposed to do some check constraints somewhere around here but piccolo
     # has no provision currently for that (at least this  version) except by writing raw sql
     # in your migration files which is something I don't want to do. So I'll just focus on
