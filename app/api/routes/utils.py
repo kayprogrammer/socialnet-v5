@@ -28,10 +28,9 @@ async def get_requestee_and_friend_obj(user, username, status=None):
 
 
 def get_notifications_queryset(current_user):
-    current_user_id = current_user.id
     # Fetch current user notifications
     notifications = (
-        Notification.filter(Notification.receiver_ids.any(current_user_id))
+        Notification.filter(receivers__id=current_user.id)
         .select_related("sender", "sender__avatar", "post", "comment", "reply")
         .order_by("-created_at")
     )

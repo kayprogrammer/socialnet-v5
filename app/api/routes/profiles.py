@@ -23,7 +23,7 @@ from app.api.utils.file_processors import ALLOWED_IMAGE_TYPES
 from app.api.utils.paginators import Paginator
 from app.api.utils.tools import set_dict_attr
 from app.common.exception_handlers import ErrorCode, RequestError
-from tortoise.expressions import Q, Case, When
+from tortoise.expressions import Q, Case, When, F
 import re
 
 from app.db.models.base import File
@@ -139,8 +139,7 @@ class UserProfileView(Controller):
                     data={"city_id": "No city with that ID"},
                     status_code=422,
                 )
-            data["city"] = city_id
-            user.city_name = city.name
+            data["city"] = city
 
         # Handle file upload
         image_upload_id = False
@@ -192,22 +191,21 @@ class FriendsView(Controller):
     async def retrieve_friends(
         self, user: User, page: int = 1
     ) -> ProfilesResponseSchema:
-        friends = (
-            await Friend.filter(
+        friend_ids = await (
+            Friend.filter(
                 status="ACCEPTED",
             )
             .filter(Q(requester_id=user.id) | Q(requestee_id=user.id))
             .select_related("requester", "requestee")
+            .annotate(
+                friend_id=Case(
+                    When(requester_id=user.id, then=F("requestee_id")),
+                    When(requestee_id=user.id, then=F("requester_id")),
+                )
+            )
+            .values_list("friend_id", flat=True)
         )
-        friend_ids = [
-            friend["requester_id"]
-            if friend["requester_id"] != user.id
-            else friend["requestee_id"]
-            for friend in friends
-        ]
-        friends = []
-        if friend_ids:
-            friends = User.filter(id__in=friend_ids).select_related("avatar", "city")
+        friends = User.filter(id__in=friend_ids).select_related("avatar", "city")
 
         # Return paginated data
         paginator.page_size = 20
@@ -225,11 +223,9 @@ class FriendsView(Controller):
         pending_friend_ids = await Friend.filter(
             requestee_id=user.id, status="PENDING"
         ).values_list("requester_id", flat=True)
-        friends = []
-        if pending_friend_ids:
-            friends = User.filter(id__in=pending_friend_ids).select_related(
-                "avatar", "city"
-            )
+        friends = User.filter(id__in=pending_friend_ids).select_related(
+            "avatar", "city"
+        )
 
         # Return paginated data
         paginator.page_size = 20
@@ -249,12 +245,18 @@ class FriendsView(Controller):
         requestee, friend = await get_requestee_and_friend_obj(user, data.username)
         message = "Friend Request sent"
         status_code = 201
+        if requestee == user:
+            raise RequestError(
+                err_code=ErrorCode.NOT_ALLOWED,
+                err_msg="You can't send yourself a friend request nor delete a friend request sent to you.",
+                status_code=403,
+            )
         if friend:
             status_code = 200
             message = "Friend Request removed"
             if friend.status == "ACCEPTED":
                 message = "This user is already your friend"
-            elif user.id != friend.requester:
+            elif user.id != friend.requester_id:
                 raise RequestError(
                     err_code=ErrorCode.NOT_ALLOWED,
                     err_msg="The user already sent you a friend request!",

@@ -148,7 +148,7 @@ class ChatsView(Controller):
         return ChatResponseSchema(message="Messages fetched", data=data)
 
     @patch(
-        "/{chat_id}",
+        "/{chat_id:uuid}",
         summary="Update a Group Chat",
         description="""
             This endpoint updates a group chat.

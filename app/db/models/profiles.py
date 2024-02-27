@@ -38,7 +38,7 @@ class NotificationTypeChoices(Enum):
 
 
 class Notification(BaseModel):
-    sender = fields.ForeignKeyField("models.User", related_name="notifications_from")
+    sender = fields.ForeignKeyField("models.User", related_name="notifications_from", null=True)
     receivers = fields.ManyToManyField("models.User", related_name="notifications_to")
     ntype = fields.CharEnumField(enum_type=NotificationTypeChoices, max_length=100)
     post = fields.ForeignKeyField("models.Post", null=True)
