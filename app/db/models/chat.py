@@ -32,7 +32,7 @@ class Chat(BaseModel):
                 content_type=image.resource_type,
             )
         return None
-
+    
     # So I'm supposed to do some check constraints somewhere around here but tortoise orm
     # has no provision currently for that (at least this  version) except by writing raw sql
     # in your migration files which is something I don't want to do. So I'll just focus on

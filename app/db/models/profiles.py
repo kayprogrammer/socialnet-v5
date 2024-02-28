@@ -39,13 +39,13 @@ class NotificationTypeChoices(Enum):
 
 class Notification(BaseModel):
     sender = fields.ForeignKeyField("models.User", related_name="notifications_from", null=True)
-    receivers = fields.ManyToManyField("models.User", related_name="notifications_to")
+    receivers = fields.ManyToManyField("models.User", related_name="notifications_to", null=True)
     ntype = fields.CharEnumField(enum_type=NotificationTypeChoices, max_length=100)
     post = fields.ForeignKeyField("models.Post", null=True)
     comment = fields.ForeignKeyField("models.Comment", null=True)
     reply = fields.ForeignKeyField("models.Reply", null=True)
     text = fields.CharField(max_length=100, null=True)
-    read_by = fields.ManyToManyField("models.User")
+    read_by = fields.ManyToManyField("models.User", related_name="notifications_read", null=True)
 
     def __str__(self):
         return str(self.id)
@@ -60,7 +60,7 @@ class Notification(BaseModel):
     async def user_is_read(self, user_id):
         return await self.read_by.filter(id=user_id).exists()
 
-    # So I'm supposed to do some check constraints somewhere around here but piccolo
+    # So I'm supposed to do some check constraints somewhere around here but tortoise orm
     # has no provision currently for that (at least this  version) except by writing raw sql
     # in your migration files which is something I don't want to do. So I'll just focus on
     # doing very good validations. But there will be no db level constraints
