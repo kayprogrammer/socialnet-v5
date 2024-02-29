@@ -39,13 +39,14 @@ def get_notifications_queryset(current_user):
 
 # Update group chat users m2m
 async def update_group_chat_users(instance, action, data):
-    if len(data) > 0:
-        if action == "add":
-            await instance.users.add(*data)
-        elif action == "remove":
-            await instance.users.remove(*data)
-        else:
-            raise ValueError("Invalid Action")
+    if not data:
+        return
+    if action == "add":
+        await instance.users.add(*data)
+    elif action == "remove":
+        await instance.users.remove(*data)
+    else:
+        raise ValueError("Invalid Action")
 
 
 # Create file object
@@ -80,13 +81,7 @@ async def get_chat_object(user, chat_id):
     chat = (
         await Chat.filter(Q(owner=user) | Q(users__id=user.id))
         .select_related("owner", "owner__avatar", "image")
-        .prefetch_related(
-            Prefetch(
-                "users",
-                queryset=User.all().select_related("avatar"),
-                to_attr="recipients",
-            ),
-        )
+        .prefetch_related("users", "users__avatar")
         .get_or_none(id=chat_id)
     )
     if not chat:
@@ -99,10 +94,8 @@ async def get_chat_object(user, chat_id):
 
 
 async def get_message_object(message_id, user):
-    message = (
-        await Message.all()
-        .select_related("sender", "chat", "sender__avatar", "file")
-        .get_or_none(id=message_id, sender=user)
+    message = await Message.get_or_none(id=message_id, sender=user).select_related(
+        "sender", "chat", "sender__avatar", "file"
     )
     if not message:
         raise RequestError(
@@ -116,7 +109,7 @@ async def get_message_object(message_id, user):
 async def usernames_to_add_and_remove_validations(
     chat, usernames_to_add=None, usernames_to_remove=None
 ):
-    original_existing_user_ids = await chat.users.values_list("id", flat=True)
+    original_existing_user_ids = await chat.users.all().values_list("id", flat=True)
     expected_user_total = len(original_existing_user_ids)
     users_to_add = []
     if usernames_to_add:

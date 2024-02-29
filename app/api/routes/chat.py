@@ -6,6 +6,7 @@ from app.api.routes.utils import (
     get_chat_object,
     get_chats_queryset,
     get_message_object,
+    update_group_chat_users,
     usernames_to_add_and_remove_validations,
 )
 from app.api.schemas.chat import (
@@ -143,8 +144,7 @@ class ChatsView(Controller):
         )
         # Set latest message
         chat.latest_message = paginated_data["items"][:1]
-
-        data = {"chat": chat, "messages": paginated_data, "users": chat.recipients}
+        data = {"chat": chat, "messages": paginated_data, "recipients": chat.users}
         return ChatResponseSchema(message="Messages fetched", data=data)
 
     @patch(
@@ -190,7 +190,7 @@ class ChatsView(Controller):
             image_upload_id = file.id
         chat = set_dict_attr(data, chat)
         await chat.save()
-        chat.users = await User.objects(User.avatar).where(User.id.is_in(chat.user_ids))
+        chat.recipients = await chat.users.all().select_related("avatar")
         chat.image_upload_id = image_upload_id
         return GroupChatInputResponseSchema(message="Chat updated", data=chat)
 
@@ -238,17 +238,16 @@ class MessagesView(Controller):
         file_type = data.pop("file_type", None)
         if file_type:
             file = message.file
-            if file.id:
+            if file:
                 file.resource_type = file_type
                 await file.save()
             else:
                 file = await create_file(file_type)
-                data["file"] = file.id
+                data["file"] = file
             file_upload_id = file.id
         message = set_dict_attr(data, message)
         await message.save()
         message.file_upload_id = file_upload_id
-        message.chat = message.chat.id
         return MessageCreateResponseSchema(message="Message updated", data=message)
 
     @delete(
@@ -266,7 +265,7 @@ class MessagesView(Controller):
         message = await get_message_object(message_id, user)
         chat = message.chat
         chat_id = chat.id
-        messages_count = await Message.count().where(Message.chat == chat_id)
+        messages_count = await chat.messages.all().count()
 
         # Send socket message
         # await send_message_deletion_in_socket(
@@ -275,21 +274,9 @@ class MessagesView(Controller):
 
         # Delete message and chat if its the last message in the dm being deleted
         if messages_count == 1 and chat.ctype == "DM":
-            await chat.remove()  # Message deletes if chat gets deleted (CASCADE)
+            await chat.delete()  # Message deletes if chat gets deleted (CASCADE)
         else:
-            # Set new latest message
-            new_latest_message = (
-                await Message.select(Message.id)
-                .where(Message.chat == chat_id, Message.id != message.id)
-                .order_by(Message.created_at, ascending=False)
-                .first()
-            )
-            new_latest_message_id = (
-                new_latest_message["id"] if new_latest_message else None
-            )
-            chat.latest_message_id = new_latest_message_id
-            await chat.save()
-            await message.remove()
+            await message.delete()
         return ResponseSchema(message="Message deleted")
 
 
@@ -306,15 +293,17 @@ class GroupsView(Controller):
         status_code=201,
     )
     async def create_group_chat(
-        data: GroupChatCreateSchema, user: User
+        self, data: GroupChatCreateSchema, user: User
     ) -> GroupChatInputResponseSchema:
         data = data.model_dump(exclude_none=True)
         data.update({"owner": user, "ctype": "GROUP"})
 
         # Handle Users Upload
         usernames_to_add = data.pop("usernames_to_add")
-        users_to_add = await User.objects(User.avatar).where(
-            User.username.is_in(usernames_to_add), User.id != user.id
+        users_to_add = (
+            await User.filter(username__in=usernames_to_add)
+            .exclude(id=user.id)
+            .select_related("avatar")
         )
         if not users_to_add:
             raise RequestError(
@@ -329,13 +318,13 @@ class GroupsView(Controller):
         image_upload_id = None
         if file_type:
             file = await create_file(file_type)
-            data["image"] = file.id
+            data["image"] = file
             image_upload_id = file.id
 
         # Create Chat
-        data["user_ids"] = [user.id for user in users_to_add]
-        chat = await Chat.objects().create(**data)
-        chat.users = users_to_add
+        chat = await Chat.create(**data)
+        chat.recipients = users_to_add
+        await update_group_chat_users(chat, "add", users_to_add)
         chat.image_upload_id = image_upload_id
         return GroupChatInputResponseSchema(message="Chat created", data=chat)
 

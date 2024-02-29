@@ -7,8 +7,6 @@ from litestar import (
 from litestar.exceptions import HTTPException, ValidationException
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 
-from app.api.utils.tools import cut_sentence
-
 
 class ErrorCode:
     UNAUTHORIZED_USER = "unauthorized_user"
@@ -72,6 +70,27 @@ def http_exception_handler(_: Request, exc: HTTPException) -> Response:
     )
 
 
+def cut_sentence(sentence, target_word):
+    words = sentence.split()
+    index_of_target = words.index(target_word)
+    truncated_sentence = " ".join(words[: index_of_target + 1])
+    return truncated_sentence
+
+
+def change_length_error_message(message):
+    # Split the input string into words
+    words = message.split()
+
+    allowed_keywords = ["items", "item", "characters"]
+    target_keyword = next((kw for kw in allowed_keywords if kw in message), "character")
+    index_of_target = words.index(target_keyword)
+
+    # Create the transformed string
+    other_kw = "max" if "at most" in message else "min"
+    transformed_string = f"{words[index_of_target - 1]} {target_keyword} {other_kw}"
+    return transformed_string
+
+
 def validation_exception_handler(_: Request, exc: ValidationException) -> Response:
     # Get the original 'detail' list of errors
     details = exc.extra
@@ -81,12 +100,8 @@ def validation_exception_handler(_: Request, exc: ValidationException) -> Respon
         err_msg = error["message"]
         if err_msg.startswith("Value error,"):
             err_msg = err_msg[13:]
-        at_most = "at most"
-        at_least = "at least"
-        if at_most in err_msg:
-            err_msg = f"{cut_sentence(err_msg, at_most)} max"
-        elif at_least in err_msg:
-            err_msg = f"{cut_sentence(err_msg, at_least)} min"
+        if "at most" in err_msg or "at least" in err_msg:
+            err_msg = change_length_error_message(err_msg)
         modified_details[error["key"]] = err_msg
     return Response(
         status_code=status_codes.HTTP_422_UNPROCESSABLE_ENTITY,

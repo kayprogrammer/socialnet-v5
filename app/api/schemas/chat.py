@@ -83,7 +83,7 @@ class MessagesResponseDataSchema(PaginatedResponseDataSchema):
 class MessagesSchema(BaseModel):
     chat: ChatSchema
     messages: MessagesResponseDataSchema
-    users: List[UserDataSchema]
+    users: List[UserDataSchema] = Field(..., alias="recipients")
 
 
 class GroupChatSchema(BaseModel):
@@ -91,7 +91,7 @@ class GroupChatSchema(BaseModel):
     name: str
     description: Optional[str]
     image: Optional[str] = Field(..., alias="get_image")
-    users: List[UserDataSchema]
+    users: List[UserDataSchema] = Field(..., alias="recipients")
 
 
 username_field = Field(None, min_items=1, max_items=99, example=["john-doe"])
@@ -100,9 +100,9 @@ username_field = Field(None, min_items=1, max_items=99, example=["john-doe"])
 class GroupChatInputSchema(BaseModel):
     name: str = Field(..., max_length=100)
     description: str = Field(None, max_length=1000)
-    usernames_to_add: List[str] = username_field
-    usernames_to_remove: List[str] = username_field
-    file_type: str = Field(None, example="image/jpeg")
+    usernames_to_add: Optional[List[str]] = username_field
+    usernames_to_remove: Optional[List[str]] = username_field
+    file_type: Optional[str] = Field(None, example="image/jpeg")
 
     @validator("file_type", always=True)
     def validate_img_type(cls, v):
@@ -164,7 +164,7 @@ class ChatResponseSchema(ResponseSchema):
 class GroupChatInputResponseDataSchema(GroupChatSchema):
     image: Any = Field(None, exclude=True, hidden=True)
     image_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
-    file_upload_data: Dict = Field(None, example=file_upload_data)
+    file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
     @validator("file_upload_data", always=True)
     def assemble_file_upload_data(cls, v, values):

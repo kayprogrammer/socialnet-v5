@@ -8,18 +8,18 @@ class ResponseSchema(OriginalBaseModel):
     message: str
 
 
-class BaseModel(OriginalBaseModel):
+class BaseModel(OriginalBaseModel, extra="allow"):
     class Config:
         arbitrary_types_allowed = True
         from_attributes = True
 
-        @staticmethod
-        def json_schema_extra(schema: dict, _):
-            props = {}
-            for k, v in schema.get("properties", {}).items():
-                if not v.get("hidden", False):
-                    props[k] = v
-            schema["properties"] = props
+    @staticmethod
+    def model_json_schema(schema: dict, _):
+        props = {}
+        for k, v in schema.get("properties", {}).items():
+            if not v.get("hidden", False):
+                props[k] = v
+        schema["properties"] = props
 
 
 class PaginatedResponseDataSchema(BaseModel):

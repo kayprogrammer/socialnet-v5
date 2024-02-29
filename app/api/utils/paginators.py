@@ -12,7 +12,7 @@ class Paginator(object):
                 err_code=ErrorCode.INVALID_PAGE, err_msg="Invalid Page", status_code=404
             )
         page_size = self.page_size
-        # Doing limit and offset would probably be the best way for this, but this ORM left me no choice.
+        # Doing limit and offset would probably be the best way for this, but lets enjoy it like this for now.
         qs = []
         if queryset != qs:
             qs = await queryset.limit(1000000)

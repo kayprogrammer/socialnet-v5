@@ -18,7 +18,7 @@ show-logs:
 	docker-compose logs
 
 serv:
-	litestar run --reload
+	litestar run --reload --debug
 
 init-db:
 	aerich init-db
