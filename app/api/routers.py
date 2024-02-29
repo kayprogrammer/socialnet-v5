@@ -31,14 +31,14 @@ profiles_router = Router(
     },
 )
 
-# chat_router = Router(
-#     path="/chats",
-#     route_handlers=chat_handlers,
-#     tags=["Chats"],
-#     dependencies={
-#         "user": Provide(get_current_user),
-#     },
-# )
+chat_router = Router(
+    path="/chats",
+    route_handlers=chat_handlers,
+    tags=["Chats"],
+    dependencies={
+        "user": Provide(get_current_user),
+    },
+)
 
 # feed_router = Router(
 #     path="/feed",
@@ -55,7 +55,7 @@ base_router = Router(
         general_router,
         auth_router,
         profiles_router,
-        # chat_router,
+        chat_router,
         # feed_router,
     ],
 )

@@ -29,9 +29,9 @@ class PaginatedResponseDataSchema(BaseModel):
 
 
 class UserDataSchema(BaseModel):
-    full_name: str = Field(..., alias="name")
+    name: str = Field(..., alias="full_name")
     username: str
-    get_avatar: Optional[str] = Field(..., serialization_alias="avatar")
+    avatar: Optional[str] = Field(..., alias="get_avatar")
 
     class Config:
         json_schema_extra = {"example": user_data}

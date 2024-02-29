@@ -9,5 +9,6 @@ class BaseModel(Model):
     class Meta:
         abstract = True
 
+
 class File(BaseModel):
     resource_type = fields.CharField(max_length=20)

@@ -4,6 +4,7 @@ from litestar import Controller, Request, delete, get, patch, post, put
 from app.api.routes.utils import (
     create_file,
     get_chat_object,
+    get_chats_queryset,
     get_message_object,
     usernames_to_add_and_remove_validations,
 )
@@ -43,11 +44,7 @@ class ChatsView(Controller):
     async def retrieve_user_chats(
         self, user: User, page: int = 1
     ) -> ChatsResponseSchema:
-        chats = (
-            Chat.filter((Chat.owner == user.id) | (Chat.user_ids.any(user.id)))
-            .select_related("owner", "owner__avatar", "image")
-            .order_by("-updated_at")
-        )
+        chats = await get_chats_queryset(user)
         paginator.page_size = 200
         paginated_data = await paginator.paginate_queryset(chats, page)
         return ChatsResponseSchema(message="Chats fetched", data=paginated_data)
@@ -103,7 +100,7 @@ class ChatsView(Controller):
                         "username": "A chat already exist between you and the recipient"
                     },
                 )
-            chat = await Chat.create(owner=user.id)
+            chat = await Chat.create(owner=user)
             await chat.users.add(recipient_user)
         else:
             # Get the chat with chat id and check if the current user is the owner or the recipient
@@ -121,9 +118,8 @@ class ChatsView(Controller):
         file = await create_file(data.file_type)
         file_upload_id = file.id if file else None
         message = await Message.create(
-            chat=chat.id, sender=user.id, text=data.text, file=file
+            chat=chat, sender=user, text=data.text, file=file
         )
-        message.sender = user
         message.file_upload_id = file_upload_id
         return MessageCreateResponseSchema(message="Message sent", data=message)
 
@@ -139,12 +135,16 @@ class ChatsView(Controller):
     ) -> ChatResponseSchema:
         chat = await get_chat_object(user, chat_id)
         paginator.page_size = 400
-        paginated_data = await paginator.paginate_queryset(chat.messages, page)
-        # Set latest message obj
-        messages = paginated_data["items"]
-        chat._latest_message_obj = messages[0] if len(messages) > 0 else None
+        paginated_data = await paginator.paginate_queryset(
+            chat.messages.all()
+            .select_related("sender", "sender__avatar", "file")
+            .order_by("-created_at"),
+            page,
+        )
+        # Set latest message
+        chat.latest_message = paginated_data["items"][:1]
 
-        data = {"chat": chat, "messages": paginated_data, "users": chat.users}
+        data = {"chat": chat, "messages": paginated_data, "users": chat.recipients}
         return ChatResponseSchema(message="Messages fetched", data=data)
 
     @patch(
@@ -157,11 +157,9 @@ class ChatsView(Controller):
     async def update_group_chat(
         self, chat_id: UUID, data: GroupChatInputSchema, user: User
     ) -> GroupChatInputResponseSchema:
-        chat = (
-            await Chat.objects(Chat.image)
-            .where(Chat.owner == user.id, Chat.ctype == "GROUP")
-            .get(Chat.id == chat_id)
-        )
+        chat = await Chat.get_or_none(
+            owner=user, ctype="GROUP", id=chat_id
+        ).select_related("image")
         if not chat:
             raise RequestError(
                 err_code=ErrorCode.NON_EXISTENT,
@@ -202,13 +200,10 @@ class ChatsView(Controller):
         description="""
             This endpoint deletes a group chat.
         """,
+        status_code=200,
     )
     async def delete_group_chat(self, chat_id: UUID, user: User) -> ResponseSchema:
-        chat = (
-            await Chat.objects()
-            .where(Chat.owner == user.id, Chat.ctype == "GROUP")
-            .get(Chat.id == chat_id)
-        )
+        chat = await Chat.get_or_none(owner=user, ctype="GROUP", id=chat_id)
         if not chat:
             raise RequestError(
                 err_code=ErrorCode.NON_EXISTENT,
@@ -263,6 +258,7 @@ class MessagesView(Controller):
             This endpoint deletes a message.
 
         """,
+        status_code=200,
     )
     async def delete_message(
         self, request: Request, message_id: UUID, user: User

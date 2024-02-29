@@ -56,10 +56,11 @@ async def create_file(file_type=None):
     return file
 
 
-async def get_chat_object(user, chat_id):
-    chat = (
-        await Chat.filter(Q(owner=user) | Q(users__id=user.id))
+async def get_chats_queryset(user):
+    chats = (
+        Chat.filter(Q(owner=user) | Q(users__id=user.id))
         .select_related("owner", "owner__avatar", "image")
+        .order_by("-updated_at")
         .prefetch_related(
             Prefetch(
                 "messages",
@@ -67,7 +68,19 @@ async def get_chat_object(user, chat_id):
                 .select_related("sender", "sender__avatar", "file")
                 .order_by("-created_at")
                 .limit(1),
-            ),
+                to_attr="latest_message",
+            )
+        )
+        .distinct()
+    )
+    return chats
+
+
+async def get_chat_object(user, chat_id):
+    chat = (
+        await Chat.filter(Q(owner=user) | Q(users__id=user.id))
+        .select_related("owner", "owner__avatar", "image")
+        .prefetch_related(
             Prefetch(
                 "users",
                 queryset=User.all().select_related("avatar"),

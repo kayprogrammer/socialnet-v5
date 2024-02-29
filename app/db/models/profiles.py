@@ -38,14 +38,20 @@ class NotificationTypeChoices(Enum):
 
 
 class Notification(BaseModel):
-    sender = fields.ForeignKeyField("models.User", related_name="notifications_from", null=True)
-    receivers = fields.ManyToManyField("models.User", related_name="notifications_to", null=True)
+    sender = fields.ForeignKeyField(
+        "models.User", related_name="notifications_from", null=True
+    )
+    receivers = fields.ManyToManyField(
+        "models.User", related_name="notifications_to", null=True
+    )
     ntype = fields.CharEnumField(enum_type=NotificationTypeChoices, max_length=100)
     post = fields.ForeignKeyField("models.Post", null=True)
     comment = fields.ForeignKeyField("models.Comment", null=True)
     reply = fields.ForeignKeyField("models.Reply", null=True)
     text = fields.CharField(max_length=100, null=True)
-    read_by = fields.ManyToManyField("models.User", related_name="notifications_read", null=True)
+    read_by = fields.ManyToManyField(
+        "models.User", related_name="notifications_read", null=True
+    )
 
     def __str__(self):
         return str(self.id)

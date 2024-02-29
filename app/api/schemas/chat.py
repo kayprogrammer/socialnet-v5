@@ -21,14 +21,25 @@ class ChatSchema(BaseModel):
     ctype: str
     description: Optional[str]
     image: Optional[str] = Field(..., alias="get_image")
-    latest_message: Optional[dict]
+    latest_message: Optional[Dict]
     created_at: datetime
     updated_at: datetime
+
+    @validator("latest_message", pre=True)
+    def resolve_latest_message(cls, v):
+        if len(v) > 0:
+            message = v[0]
+            return {
+                "sender": UserDataSchema.model_validate(message.sender).model_dump(),
+                "text": message.text,
+                "file": message.get_file,
+            }
+        return None
 
 
 class MessageSchema(BaseModel):
     id: UUID
-    chat_id: UUID = Field(..., alias="chat")
+    chat_id: UUID
     sender: UserDataSchema
     text: Optional[str]
     file: Optional[str] = Field(..., alias="get_file")
@@ -46,7 +57,7 @@ class MessageUpdateSchema(BaseModel):
             raise ValueError("You must enter a text")
         return v
 
-    @validator("file_type", always=True)
+    @validator("file_type", pre=True)
     def validate_file_type(cls, v):
         return validate_file_type(v)
 
@@ -55,7 +66,7 @@ class MessageCreateSchema(MessageUpdateSchema):
     chat_id: UUID = Field(None)
     username: str = Field(None, example="john-doe")
 
-    @validator("username", always=True)
+    @validator("username", pre=True)
     def validate_username(cls, v, values):
         chat_id = values.get("chat_id")
         if not chat_id and not v:
@@ -119,7 +130,7 @@ class GroupChatCreateSchema(GroupChatInputSchema):
 
 # RESPONSES
 class ChatsResponseDataSchema(PaginatedResponseDataSchema):
-    items: List[ChatSchema] = Field(..., alias="chats")
+    chats: List[ChatSchema] = Field(..., alias="items")
 
 
 class ChatsResponseSchema(ResponseSchema):
@@ -129,7 +140,7 @@ class ChatsResponseSchema(ResponseSchema):
 class MessageCreateResponseDataSchema(MessageSchema):
     file: Any = Field(None, exclude=True, hidden=True)
     file_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
-    file_upload_data: Dict = Field(None, example=file_upload_data)
+    file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
     @validator("file_upload_data", always=True)
     def assemble_file_upload_data(cls, v, values):
@@ -151,7 +162,7 @@ class ChatResponseSchema(ResponseSchema):
 
 
 class GroupChatInputResponseDataSchema(GroupChatSchema):
-    get_image: Any = Field(None, exclude=True, hidden=True)
+    image: Any = Field(None, exclude=True, hidden=True)
     image_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
     file_upload_data: Dict = Field(None, example=file_upload_data)
 
