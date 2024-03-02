@@ -40,14 +40,14 @@ chat_router = Router(
     },
 )
 
-# feed_router = Router(
-#     path="/feed",
-#     route_handlers=feed_handlers,
-#     tags=["Feed"],
-#     dependencies={
-#         "user": Provide(get_current_user),
-#     },
-# )
+feed_router = Router(
+    path="/feed",
+    route_handlers=feed_handlers,
+    tags=["Feed"],
+    dependencies={
+        "user": Provide(get_current_user),
+    },
+)
 
 base_router = Router(
     path="/api/v5",
@@ -56,6 +56,6 @@ base_router = Router(
         auth_router,
         profiles_router,
         chat_router,
-        # feed_router,
+        feed_router,
     ],
 )

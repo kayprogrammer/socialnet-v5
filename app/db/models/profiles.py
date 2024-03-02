@@ -1,5 +1,6 @@
 from enum import Enum
 from app.api.utils.notification import get_notification_message
+from app.db.models.accounts import User
 from app.db.models.base import BaseModel
 from tortoise import fields
 
@@ -41,7 +42,7 @@ class Notification(BaseModel):
     sender = fields.ForeignKeyField(
         "models.User", related_name="notifications_from", null=True
     )
-    receivers = fields.ManyToManyField(
+    receivers: fields.ManyToManyRelation[User] = fields.ManyToManyField(
         "models.User", related_name="notifications_to", null=True
     )
     ntype = fields.CharEnumField(enum_type=NotificationTypeChoices, max_length=100)
@@ -49,7 +50,7 @@ class Notification(BaseModel):
     comment = fields.ForeignKeyField("models.Comment", null=True)
     reply = fields.ForeignKeyField("models.Reply", null=True)
     text = fields.CharField(max_length=100, null=True)
-    read_by = fields.ManyToManyField(
+    read_by: fields.ManyToManyRelation[User] = fields.ManyToManyField(
         "models.User", related_name="notifications_read", null=True
     )
 

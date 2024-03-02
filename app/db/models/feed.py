@@ -46,18 +46,22 @@ class Post(FeedAbstract):
 
 
 class Comment(FeedAbstract):
-    post = fields.ForeignKeyField("models.Post")
+    post = fields.ForeignKeyField("models.Post", related_name="comments")
 
 
 class Reply(FeedAbstract):
-    comment = fields.ForeignKeyField("models.Comment")
+    comment = fields.ForeignKeyField("models.Comment", related_name="replies")
 
 
 class Reaction(BaseModel):
     user = fields.ForeignKeyField("models.User")
     rtype = fields.CharField(max_length=20, choices=ReactionChoices)
     post = fields.ForeignKeyField(
-        "models.Post", on_delete=fields.SET_NULL, null=True, blank=True
+        "models.Post",
+        on_delete=fields.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reactions",
     )
     comment = fields.ForeignKeyField(
         "models.Comment", on_delete=fields.SET_NULL, null=True, blank=True

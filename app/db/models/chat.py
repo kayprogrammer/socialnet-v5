@@ -1,5 +1,6 @@
 from enum import Enum
 from app.api.utils.file_processors import FileProcessor
+from app.db.models.accounts import User
 from app.db.models.base import BaseModel
 from tortoise import fields
 
@@ -15,7 +16,9 @@ class Chat(BaseModel):
     ctype = fields.CharEnumField(
         enum_type=ChatChoices, max_length=10, default=ChatChoices.DM
     )
-    users = fields.ManyToManyField("models.User", related_name="membered_chats")
+    users: fields.ManyToManyRelation[User] = fields.ManyToManyField(
+        "models.User", related_name="membered_chats"
+    )
     description = fields.CharField(max_length=1000, null=True)
     image = fields.ForeignKeyField("models.File", on_delete=fields.SET_NULL, null=True)
 
