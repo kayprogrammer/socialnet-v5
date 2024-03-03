@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 # Run migrations
-piccolo migrations forwards all
+aerich upgrade
 
 # Create initial data
 python initials/initial_data.py
@@ -10,4 +10,4 @@ python initials/initial_data.py
 # pytest --verbose --disable-warnings -vv -x --timeout=10
 
 # Start application
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload 
+litestar run --debug --host 0.0.0.0 --port 8000 --reload 

@@ -1,12 +1,13 @@
 from litestar import Router
 from litestar.di import Provide
-from app.api.deps import get_current_user, get_current_user_or_guest
+from app.api.deps import get_current_socket_user, get_current_user, get_current_user_or_guest
 
 from app.api.routes.general import SiteDetailView
 from app.api.routes.auth import auth_handlers
 from app.api.routes.profiles import profiles_handlers
 from app.api.routes.chat import chat_handlers
 from app.api.routes.feed import feed_handlers
+from app.api.sockets.notification import NotificationSocketHandler
 
 general_router = Router(
     path="/general",
@@ -49,6 +50,15 @@ feed_router = Router(
     },
 )
 
+socket_router = Router(
+    path="/ws",
+    route_handlers=[NotificationSocketHandler],
+    tags=["Websocket"],
+    dependencies={
+        "user": Provide(get_current_socket_user),
+    },
+)
+
 base_router = Router(
     path="/api/v5",
     route_handlers=[
@@ -57,5 +67,6 @@ base_router = Router(
         profiles_router,
         chat_router,
         feed_router,
+        socket_router
     ],
 )

@@ -36,7 +36,7 @@ from app.api.schemas.base import ResponseSchema
 from app.common.exception_handlers import RequestError
 from app.db.models.accounts import User
 from app.db.models.base import File
-from app.db.models.feed import Post, Reaction
+from app.db.models.feed import Comment, Post, Reaction, Reply
 from app.db.models.profiles import Notification
 from tortoise.functions import Count
 
@@ -289,241 +289,235 @@ class ReactionsView(Controller):
 # COMMENTS
 
 
-# @router.get(
-#     "/posts/{slug}/comments",
-#     summary="Retrieve Post Comments",
-#     description="""
-#         This endpoint retrieves comments of a particular post.
-#     """,
-# )
-# async def retrieve_comments(slug: str, page: int = 1) -> CommentsResponseSchema:
-#     post = await get_post_object(slug)
-#     comments = Comment.objects(Comment.author, Comment.author.avatar).where(
-#         Comment.post == post.id
-#     )
-#     paginated_data = await paginator.paginate_queryset(comments, page)
-#     return {"message": "Comments Fetched", "data": paginated_data}
+class CommentsView(Controller):
+    path = "/posts"
+
+    @get(
+        "/{slug:str}/comments",
+        summary="Retrieve Post Comments",
+        description="""
+            This endpoint retrieves comments of a particular post.
+        """,
+    )
+    async def retrieve_comments(
+        self, slug: str, page: int = 1
+    ) -> CommentsResponseSchema:
+        post = await get_post_object(slug)
+        comments = Comment.filter(post_id=post.id).select_related(
+            "author", "author__avatar"
+        )
+        paginated_data = await paginator.paginate_queryset(comments, page)
+        return CommentsResponseSchema(message="Comments Fetched", data=paginated_data)
+
+    @post(
+        "/{slug:str}/comments",
+        summary="Create Comment",
+        description="""
+            This endpoint creates a comment for a particular post.
+        """,
+        status_code=201,
+    )
+    async def create_comment(
+        self, request: Request, slug: str, data: CommentInputSchema, user: User
+    ) -> CommentResponseSchema:
+        post = await get_post_object(slug)
+        comment = await Comment.create(post=post, author=user, text=data.text)
+
+        # Create and Send Notification
+        if user.id != post.author_id:
+            notification = await Notification.create(
+                sender=user,
+                ntype="COMMENT",
+                comment=comment,
+                receiver_ids=[post.author],
+            )
+            await notification.receivers.add(post.author)
+            # Send to websocket
+            await send_notification_in_socket(
+                is_secured(request), request.headers["host"], notification
+            )
+        return CommentResponseSchema(message="Comment Created", data=comment)
 
 
-# @router.post(
-#     "/posts/{slug}/comments",
-#     summary="Create Comment",
-#     description="""
-#         This endpoint creates a comment for a particular post.
-#     """,
-#     status_code=201,
-# )
-# async def create_comment(
-#     request: Request,
-#     slug: str,
-#     data: CommentInputSchema,
-#     user: User = Depends(get_current_user),
-# ) -> CommentResponseSchema:
-#     post = await get_post_object(slug)
-#     comment = await Comment.objects().create(post=post, author=user, text=data.text)
+class CommentView(Controller):
+    path = "/comments"
 
-#     # Create and Send Notification
-#     if user.id != post.author:
-#         notification = await Notification.objects().create(
-#             sender=user.id,
-#             ntype="COMMENT",
-#             comment=comment.id,
-#             receiver_ids=[post.author],
-#         )
-#         notification.sender = user
-#         notification.comment = comment
-#         # Send to websocket
-#         await send_notification_in_socket(
-#             is_secured(request), request.headers["host"], notification
-#         )
-#     return {"message": "Comment Created", "data": comment}
+    @get(
+        "/{slug:str}",
+        summary="Retrieve Comment with replies",
+        description="""
+            This endpoint retrieves a comment with replies.
+        """,
+    )
+    async def retrieve_comment_with_replies(
+        self, slug: str, page: int = 1
+    ) -> CommentWithRepliesResponseSchema:
+        comment = await get_comment_object(slug)
+        replies = Reply.filter(comment=comment).select_related(
+            "author", "author__avatar"
+        )
+        paginated_data = await paginator.paginate_queryset(replies, page)
+        data = {"comment": comment, "replies": paginated_data}
+        return CommentWithRepliesResponseSchema(
+            message="Comment and Replies Fetched", data=data
+        )
 
+    @post(
+        "/{slug:str}",
+        summary="Create Reply",
+        description="""
+            This endpoint creates a reply for a comment.
+        """,
+        status_code=201,
+    )
+    async def create_reply(
+        self, request: Request, slug: str, data: CommentInputSchema, user: User
+    ) -> ReplyResponseSchema:
+        comment = await get_comment_object(slug)
+        reply = await Reply.create(author=user, comment=comment, text=data.text)
 
-# @router.get(
-#     "/comments/{slug}",
-#     summary="Retrieve Comment with replies",
-#     description="""
-#         This endpoint retrieves a comment with replies.
-#     """,
-# )
-# async def retrieve_comment_with_replies(
-#     slug: str, page: int = 1
-# ) -> CommentWithRepliesResponseSchema:
-#     comment = await get_comment_object(slug)
-#     replies = Reply.objects(Reply.author, Reply.author.avatar).where(
-#         Reply.comment == comment.id
-#     )
-#     paginated_data = await paginator.paginate_queryset(replies, page)
-#     data = {"comment": comment, "replies": paginated_data}
-#     return {"message": "Comment and Replies Fetched", "data": data}
+        # Create and Send Notification
+        if user.id != comment.author_id:
+            notification = await Notification.create(
+                sender=user,
+                ntype="REPLY",
+                reply=reply,
+                receiver_ids=[comment.author.id],
+            )
+            # Send to websocket
+            await send_notification_in_socket(
+                is_secured(request), request.headers["host"], notification
+            )
+        return ReplyResponseSchema(message="Reply Created", data=reply)
 
+    @put(
+        "/{slug:str}",
+        summary="Update Comment",
+        description="""
+            This endpoint updates a particular comment.
+        """,
+    )
+    async def update_comment(
+        self, slug: str, data: CommentInputSchema, user: User
+    ) -> CommentResponseSchema:
+        comment = await get_comment_object(slug)
+        if comment.author_id != user.id:
+            raise RequestError(
+                err_code=ErrorCode.INVALID_OWNER,
+                err_msg="Not yours to edit",
+                status_code=401,
+            )
+        comment.text = data.text
+        await comment.save()
+        return CommentResponseSchema(message="Comment Updated", data=comment)
 
-# @router.post(
-#     "/comments/{slug}",
-#     summary="Create Reply",
-#     description="""
-#         This endpoint creates a reply for a comment.
-#     """,
-#     status_code=201,
-# )
-# async def create_reply(
-#     request: Request,
-#     slug: str,
-#     data: CommentInputSchema,
-#     user: User = Depends(get_current_user),
-# ) -> ReplyResponseSchema:
-#     comment = await get_comment_object(slug)
-#     reply = await Reply.objects().create(author=user, comment=comment, text=data.text)
+    @delete(
+        "/{slug:str}",
+        summary="Delete Comment",
+        description="""
+            This endpoint deletes a comment.
+        """,
+        status_code=200,
+    )
+    async def delete_comment(
+        self, request: Request, slug: str, user: User
+    ) -> ResponseSchema:
+        comment = await get_comment_object(slug)
+        if user.id != comment.author_id:
+            raise RequestError(
+                err_code=ErrorCode.INVALID_OWNER,
+                err_msg="Not yours to delete",
+                status_code=401,
+            )
 
-#     # Create and Send Notification
-#     if user.id != comment.author.id:
-#         notification = await Notification.objects().create(
-#             sender=user.id,
-#             ntype="REPLY",
-#             reply=reply.id,
-#             receiver_ids=[comment.author.id],
-#         )
-#         notification.sender = user
-#         notification.reply = reply
-#         # Send to websocket
-#         await send_notification_in_socket(
-#             is_secured(request), request.headers["host"], notification
-#         )
-#     return {"message": "Reply Created", "data": reply}
+        # # Remove Comment Notification
+        notification = await Notification.get_or_none(
+            sender=user,
+            ntype="COMMENT",
+            comment=comment,
+        )
+        if notification:
+            # Send to websocket and delete notification
+            await send_notification_in_socket(
+                is_secured(request),
+                request.headers["host"],
+                notification,
+                status="DELETED",
+            )
 
-
-# @router.put(
-#     "/comments/{slug}",
-#     summary="Update Comment",
-#     description="""
-#         This endpoint updates a particular comment.
-#     """,
-# )
-# async def update_comment(
-#     slug: str, data: CommentInputSchema, user: User = Depends(get_current_user)
-# ) -> CommentResponseSchema:
-#     comment = await get_comment_object(slug)
-#     if comment.author.id != user.id:
-#         raise RequestError(
-#             err_code=ErrorCode.INVALID_OWNER,
-#             err_msg="Not yours to edit",
-#             status_code=401,
-#         )
-#     comment.text = data.text
-#     await comment.save()
-#     return {"message": "Comment Updated", "data": comment}
-
-
-# @router.delete(
-#     "/comments/{slug}",
-#     summary="Delete Comment",
-#     description="""
-#         This endpoint deletes a comment.
-#     """,
-# )
-# async def delete_comment(
-#     request: Request, slug: str, user: User = Depends(get_current_user)
-# ) -> ResponseSchema:
-#     comment = await get_comment_object(slug)
-#     if user.id != comment.author.id:
-#         raise RequestError(
-#             err_code=ErrorCode.INVALID_OWNER,
-#             err_msg="Not yours to delete",
-#             status_code=401,
-#         )
-
-#     # # Remove Comment Notification
-#     notification = (
-#         await Notification.objects()
-#         .where(
-#             Notification.sender == user.id,
-#             Notification.ntype == "COMMENT",
-#             Notification.comment == comment.id,
-#         )
-#         .first()
-#     )
-#     if notification:
-#         # Send to websocket and delete notification
-#         await send_notification_in_socket(
-#             is_secured(request), request.headers["host"], notification, status="DELETED"
-#         )
-
-#     await comment.remove()  # deletes notification alongside (CASCADE)
-#     return {"message": "Comment Deleted"}
+        await comment.delete()  # deletes notification alongside (CASCADE)
+        return ResponseSchema(message="Comment Deleted")
 
 
-# @router.get(
-#     "/replies/{slug}",
-#     summary="Retrieve Reply",
-#     description="""
-#         This endpoint retrieves a reply.
-#     """,
-# )
-# async def retrieve_reply(slug: str) -> ReplyResponseSchema:
-#     reply = await get_reply_object(slug)
-#     return {"message": "Reply Fetched", "data": reply}
+class ReplyView(Controller):
+    path = "/replies"
+
+    @get(
+        "/{slug:str}",
+        summary="Retrieve Reply",
+        description="""
+            This endpoint retrieves a reply.
+        """,
+    )
+    async def retrieve_reply(self, slug: str) -> ReplyResponseSchema:
+        reply = await get_reply_object(slug)
+        return ReplyResponseSchema(message="Reply Fetched", data=reply)
+
+    @put(
+        "/{slug:str}",
+        summary="Update Reply",
+        description="""
+            This endpoint updates a particular reply.
+        """,
+    )
+    async def update_reply(
+        self, slug: str, data: CommentInputSchema, user: User
+    ) -> ReplyResponseSchema:
+        reply: Reply = await get_reply_object(slug)
+        if reply.author_id != user.id:
+            raise RequestError(
+                err_code=ErrorCode.INVALID_OWNER,
+                err_msg="Not yours to edit",
+                status_code=401,
+            )
+        reply.text = data.text
+        await reply.save()
+        return ReplyResponseSchema(message="Reply Updated", data=reply)
+
+    @delete(
+        "/{slug:str}",
+        summary="Delete reply",
+        description="""
+            This endpoint deletes a reply.
+        """,
+        status_code=200,
+    )
+    async def delete_reply(
+        self, request: Request, slug: str, user: User
+    ) -> ResponseSchema:
+        reply: Reply = await get_reply_object(slug)
+        if user.id != reply.author_id:
+            raise RequestError(
+                err_code=ErrorCode.INVALID_OWNER,
+                err_msg="Not yours to delete",
+                status_code=401,
+            )
+
+        # Remove Reply Notification
+        notification = await Notification.get_or_none(
+            sender=user, ntype="REPLY", reply=reply
+        )
+        if notification:
+            # Send to websocket and delete notification
+            await send_notification_in_socket(
+                is_secured(request),
+                request.headers["host"],
+                notification,
+                status="DELETED",
+            )
+
+        await reply.delete()  # deletes notification alongside (CASCADE)
+        return ResponseSchema(message="Reply Deleted")
 
 
-# @router.put(
-#     "/replies/{slug}",
-#     summary="Update Reply",
-#     description="""
-#         This endpoint updates a particular reply.
-#     """,
-# )
-# async def update_reply(
-#     slug: str, data: CommentInputSchema, user: User = Depends(get_current_user)
-# ) -> ReplyResponseSchema:
-#     reply = await get_reply_object(slug)
-#     if reply.author.id != user.id:
-#         raise RequestError(
-#             err_code=ErrorCode.INVALID_OWNER,
-#             err_msg="Not yours to edit",
-#             status_code=401,
-#         )
-#     reply.text = data.text
-#     await reply.save()
-#     return {"message": "Reply Updated", "data": reply}
-
-
-# @router.delete(
-#     "/replies/{slug}",
-#     summary="Delete reply",
-#     description="""
-#         This endpoint deletes a reply.
-#     """,
-# )
-# async def delete_reply(
-#     request: Request, slug: str, user: User = Depends(get_current_user)
-# ) -> ResponseSchema:
-#     reply = await get_reply_object(slug)
-#     if user.id != reply.author.id:
-#         raise RequestError(
-#             err_code=ErrorCode.INVALID_OWNER,
-#             err_msg="Not yours to delete",
-#             status_code=401,
-#         )
-
-#     # Remove Reply Notification
-#     notification = (
-#         await Notification.objects()
-#         .where(
-#             Notification.sender == user,
-#             Notification.ntype == "REPLY",
-#             Notification.reply == reply.id,
-#         )
-#         .first()
-#     )
-#     if notification:
-#         # Send to websocket and delete notification
-#         await send_notification_in_socket(
-#             is_secured(request), request.headers["host"], notification, status="DELETED"
-#         )
-
-#     await reply.remove()  # deletes notification alongside (CASCADE)
-#     return {"message": "Reply Deleted"}
-
-feed_handlers = [
-    PostsView,
-    ReactionsView,
-]
+feed_handlers = [PostsView, ReactionsView, CommentsView, CommentView, ReplyView]
