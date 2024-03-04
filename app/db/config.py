@@ -33,8 +33,8 @@ TORTOISE_ORM = {
 
 @asynccontextmanager
 async def lifespan(app: Litestar):
-    logger.info("Initializing Tortoise ORM")
     await Tortoise.init(config=TORTOISE_ORM)
+    logger.info("Initialized Tortoise ORM")
     yield
-    logger.info("Closing Tortoise ORM connections")
     await connections.close_all()
+    logger.info("Closed Tortoise ORM connections")

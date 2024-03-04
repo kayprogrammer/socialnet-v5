@@ -48,6 +48,7 @@ async def get_current_user_or_guest(
         return None
     return await get_user(token)
 
+
 async def get_current_socket_user(
     websocket: WebSocket,
 ) -> Union[User, str]:

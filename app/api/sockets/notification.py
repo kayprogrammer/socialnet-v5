@@ -39,6 +39,7 @@ class NotificationSocketHandler(BaseSocketConnectionHandler):
                 # Only true receivers should access the data
                 await connection.send_json(data)
 
+
 # @notification_socket_router.websocket("/notifications")
 # async def websocket_endpoint(
 #     websocket: WebSocket, user: Union[User, str] = Depends(get_current_socket_user)

@@ -26,10 +26,10 @@ services:
       - .:/build
     ports:
       - "8000:8000"
+    environment:
+      - TORTOISE_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     env_file:
       - .env
-    environment:
-      - POSTGRES_SERVER=db
     depends_on:
       - db
 

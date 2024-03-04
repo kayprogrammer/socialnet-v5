@@ -5,6 +5,7 @@ from litestar import WebSocket
 
 from app.common.exception_handlers import ErrorCode
 
+
 class BaseSocketConnectionHandler(WebsocketListener):
     active_connections: list[WebSocket] = []
 
@@ -24,7 +25,7 @@ class BaseSocketConnectionHandler(WebsocketListener):
                 socket, "Invalid JSON", ErrorCode.INVALID_DATA_TYPE
             )
         return data
-    
+
     async def send_personal_message(self, data: dict, websocket: WebSocket):
         await websocket.send_json(data)
 
