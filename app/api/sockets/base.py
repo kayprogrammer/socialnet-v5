@@ -1,21 +1,28 @@
 import json
+from typing import Union
 from litestar.handlers import WebsocketListener
 from litestar.exceptions import WebSocketException
 from litestar import WebSocket
+from litestar.di import Provide
+from app.api.deps import get_current_socket_user
 
 from app.common.exception_handlers import ErrorCode
+from app.db.models.accounts import User
 
 
 class BaseSocketConnectionHandler(WebsocketListener):
+    dependencies={
+        "user": Provide(get_current_socket_user),
+    }
     active_connections: list[WebSocket] = []
 
     async def on_accept(self, socket: WebSocket) -> None:
         print("Connection accepted")
         self.active_connections.append(socket)
 
-    def on_disconnect(self, code: int, reason: str) -> None:
+    def on_disconnect(self) -> None:
         print("Connection closed")
-        raise WebSocketException(detail=reason, code=code)
+        raise WebSocketException(detail="reason", code="code")
 
     async def on_receive(self, socket: WebSocket, data: str):
         try:
