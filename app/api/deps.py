@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 from litestar import Request, WebSocket
 from app.api.utils.auth import Authentication
 from app.common.exception_handlers import ErrorCode, RequestError, SocketError

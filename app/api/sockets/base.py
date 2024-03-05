@@ -13,7 +13,14 @@ class BaseSocketConnectionHandler(WebsocketListener):
     async def on_accept(self, socket: WebSocket, user: Any) -> None:
         if isinstance(user, SocketError):
             await self.send_error_data(socket, user.err_msg, user.err_type, user.code)
-        self.active_connections.append(socket)
+        if isinstance(user, User):
+            self.active_connections.append(socket)
+            socket.scope["user"] = user
+
+    async def on_disconnect(self, socket: WebSocket):
+        connections = self.active_connections
+        if socket in connections:
+            connections.remove(socket)
 
     async def on_receive(self, socket: WebSocket, data: str):
         try:
