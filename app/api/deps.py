@@ -1,31 +1,22 @@
-from typing import Optional, Union
+from typing import Dict, Optional
 from litestar import Request, WebSocket
-from litestar.exceptions import WebSocketException
 from app.api.utils.auth import Authentication
-from app.common.exception_handlers import ErrorCode, RequestError
+from app.common.exception_handlers import ErrorCode, RequestError, SocketError
 from app.core.config import settings
 from app.db.models.accounts import User
 
 
-async def get_user(token, websocket: Optional[WebSocket] = None):
+async def get_user(token, socket: Optional[WebSocket] = None):
     user = await Authentication.decodeAuthorization(token)
     if not user:
         err_msg = "Auth Token is Invalid or Expired"
-        if not websocket:
+        if not socket:
             raise RequestError(
                 err_code=ErrorCode.INVALID_TOKEN,
                 err_msg=err_msg,
                 status_code=401,
             )
-        await websocket.send_json(
-            {
-                "status": "error",
-                "type": ErrorCode.INVALID_TOKEN,
-                "code": 4001,
-                "message": err_msg,
-            }
-        )
-        raise WebSocketException(detail=err_msg, code=4001)
+        return SocketError(err_type=ErrorCode.INVALID_TOKEN, code=4001, err_msg=err_msg)
     return user
 
 
@@ -50,22 +41,15 @@ async def get_current_user_or_guest(
 
 
 async def get_current_socket_user(
-    websocket: WebSocket,
-) -> Union[User, str]:
-    await websocket.accept()
-    token = websocket.headers.get("authorization")
+    socket: WebSocket,
+) -> User:
+    token = socket.headers.get("authorization")
     # Return user or socket secret key
     if not token:
         err_msg = "Unauthorized User!"
-        await websocket.send_json(
-            {
-                "status": "error",
-                "type": ErrorCode.UNAUTHORIZED_USER,
-                "code": 4001,
-                "message": err_msg,
-            }
+        return SocketError(
+            err_type=ErrorCode.UNAUTHORIZED_USER, code=4001, err_msg=err_msg
         )
-        raise WebSocketException(code=4001, detail=err_msg)
     if token == settings.SOCKET_SECRET:
         return token
-    return await get_user(token, websocket)
+    return await get_user(token, socket)

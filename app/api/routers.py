@@ -58,6 +58,9 @@ socket_router = Router(
     path="/ws",
     route_handlers=[NotificationSocketHandler],
     tags=["Websocket"],
+    dependencies={
+        "user": Provide(get_current_socket_user),
+    },
 )
 
 base_router = Router(

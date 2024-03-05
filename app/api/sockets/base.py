@@ -1,28 +1,19 @@
 import json
-from typing import Union
+from typing import Any
 from litestar.handlers import WebsocketListener
-from litestar.exceptions import WebSocketException
 from litestar import WebSocket
-from litestar.di import Provide
-from app.api.deps import get_current_socket_user
 
-from app.common.exception_handlers import ErrorCode
+from app.common.exception_handlers import ErrorCode, SocketError
 from app.db.models.accounts import User
 
 
 class BaseSocketConnectionHandler(WebsocketListener):
-    dependencies={
-        "user": Provide(get_current_socket_user),
-    }
     active_connections: list[WebSocket] = []
 
-    async def on_accept(self, socket: WebSocket) -> None:
-        print("Connection accepted")
+    async def on_accept(self, socket: WebSocket, user: Any) -> None:
+        if isinstance(user, SocketError):
+            await self.send_error_data(socket, user.err_msg, user.err_type, user.code)
         self.active_connections.append(socket)
-
-    def on_disconnect(self) -> None:
-        print("Connection closed")
-        raise WebSocketException(detail="reason", code="code")
 
     async def on_receive(self, socket: WebSocket, data: str):
         try:
@@ -33,8 +24,8 @@ class BaseSocketConnectionHandler(WebsocketListener):
             )
         return data
 
-    async def send_personal_message(self, data: dict, websocket: WebSocket):
-        await websocket.send_json(data)
+    async def send_personal_message(self, data: dict, socket: WebSocket):
+        await socket.send_json(data)
 
     async def broadcast(self, data: dict):
         for connection in self.active_connections:
@@ -42,7 +33,7 @@ class BaseSocketConnectionHandler(WebsocketListener):
 
     async def send_error_data(
         self,
-        websocket: WebSocket,
+        socket: WebSocket,
         message,
         err_type=ErrorCode.BAD_REQUEST,
         code=4000,
@@ -56,5 +47,5 @@ class BaseSocketConnectionHandler(WebsocketListener):
         }
         if data:
             err_data["data"] = data
-        await websocket.send_json(err_data)
-        self.on_disconnect(code, message)
+        await socket.send_json(err_data)
+        await socket.close(code, message)

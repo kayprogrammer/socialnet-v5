@@ -17,14 +17,14 @@ class NotificationData(BaseModel):
 class NotificationSocketHandler(BaseSocketConnectionHandler):
     path = "/notifications"
 
-    async def receive_data(self, websocket: WebSocket):
-        data = await super().on_receive(websocket)
+    async def receive_data(self, socket: WebSocket):
+        data = await super().on_receive(socket)
         # Ensure data is a notification data. That means it align with the Notification data above
         try:
             NotificationData(**data)
         except Exception:
             await self.send_error_data(
-                websocket, "Invalid Notification data", ErrorCode.INVALID_ENTRY
+                socket, "Invalid Notification data", ErrorCode.INVALID_ENTRY
             )
         return data
 
