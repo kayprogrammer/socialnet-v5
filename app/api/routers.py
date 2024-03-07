@@ -11,6 +11,7 @@ from app.api.routes.auth import auth_handlers
 from app.api.routes.profiles import profiles_handlers
 from app.api.routes.chat import chat_handlers
 from app.api.routes.feed import feed_handlers
+from app.api.sockets.chat import ChatSocketHandler
 from app.api.sockets.notification import NotificationSocketHandler
 
 general_router = Router(
@@ -56,7 +57,7 @@ feed_router = Router(
 
 socket_router = Router(
     path="/ws",
-    route_handlers=[NotificationSocketHandler],
+    route_handlers=[NotificationSocketHandler, ChatSocketHandler],
     tags=["Websocket"],
     dependencies={
         "user": Provide(get_current_socket_user),

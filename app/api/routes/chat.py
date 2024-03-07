@@ -6,6 +6,7 @@ from app.api.routes.utils import (
     get_chat_object,
     get_chats_queryset,
     get_message_object,
+    is_secured,
     update_group_chat_users,
     usernames_to_add_and_remove_validations,
 )
@@ -19,6 +20,7 @@ from app.api.schemas.chat import (
     MessageCreateSchema,
     MessageUpdateSchema,
 )
+from app.api.sockets.chat import send_message_deletion_in_socket
 from app.api.utils.file_processors import ALLOWED_FILE_TYPES
 from app.api.utils.paginators import Paginator
 from app.api.utils.tools import set_dict_attr
@@ -263,14 +265,14 @@ class MessagesView(Controller):
         self, request: Request, message_id: UUID, user: User
     ) -> ResponseSchema:
         message = await get_message_object(message_id, user)
-        chat = message.chat
+        chat: Chat = message.chat
         chat_id = chat.id
         messages_count = await chat.messages.all().count()
 
         # Send socket message
-        # await send_message_deletion_in_socket(
-        #     is_secured(request), request.headers["host"], chat_id, message_id
-        # )
+        await send_message_deletion_in_socket(
+            is_secured(request), request.headers["host"], chat_id, message_id
+        )
 
         # Delete message and chat if its the last message in the dm being deleted
         if messages_count == 1 and chat.ctype == "DM":

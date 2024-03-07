@@ -18,7 +18,7 @@ class SocketMessageSchema(BaseModel):
     id: UUID
 
 
-class NotificationSocketHandler(BaseSocketConnectionHandler):
+class ChatSocketHandler(BaseSocketConnectionHandler):
     path = "/chats/{id:str}"
 
     async def on_accept(self, socket: WebSocket, user: Any, id: str) -> None:
@@ -110,6 +110,7 @@ class NotificationSocketHandler(BaseSocketConnectionHandler):
                 else:
                     await connection.send_json(data)
         return message_data
+
 
 # Send message deletion details in websocket
 async def send_message_deletion_in_socket(
