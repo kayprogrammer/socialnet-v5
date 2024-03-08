@@ -5,7 +5,7 @@ import websockets, json, os
 
 def get_notification_message(obj):
     """This function returns a notification message"""
-    ntype = obj.ntype
+    ntype = obj.ntype.value
     sender = obj.sender.full_name
     message = f"{sender} reacted to your post"
     if ntype == "REACTION":

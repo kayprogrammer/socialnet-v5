@@ -76,7 +76,10 @@ class Notification(BaseModel):
 
     @property
     def is_read(self):
-        return len(self.read_by) > 0
+        try:
+            return len(self.read_by) > 0
+        except:
+            return False
 
     @property
     def post_slug(self):

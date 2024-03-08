@@ -345,7 +345,6 @@ class NotificationsView(Controller):
     ) -> ResponseSchema:
         id = data.id
         mark_all_as_read = data.mark_all_as_read
-        print(mark_all_as_read)
         resp_message = "Notifications read"
         if mark_all_as_read:
             # Mark all notifications as read

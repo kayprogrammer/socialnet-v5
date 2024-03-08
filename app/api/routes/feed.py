@@ -269,7 +269,10 @@ class ReactionsView(Controller):
         if notification:
             # Send to websocket and delete notification
             await send_notification_in_socket(
-                request.is_secure(), request.get_host(), notification, status="DELETED"
+                is_secured(request),
+                request.headers["host"],
+                notification,
+                status="DELETED",
             )
             await notification.delete()
 
@@ -311,7 +314,7 @@ class CommentsView(Controller):
     async def create_comment(
         self, request: Request, slug: str, data: CommentInputSchema, user: User
     ) -> CommentResponseSchema:
-        post = await get_post_object(slug)
+        post = await get_post_object(slug, "detailed")
         comment = await Comment.create(post=post, author=user, text=data.text)
 
         # Create and Send Notification
@@ -373,8 +376,8 @@ class CommentView(Controller):
                 sender=user,
                 ntype="REPLY",
                 reply=reply,
-                receiver_ids=[comment.author.id],
             )
+            await notification.receivers.add(comment.author)
             # Send to websocket
             await send_notification_in_socket(
                 is_secured(request), request.headers["host"], notification
@@ -421,7 +424,7 @@ class CommentView(Controller):
                 status_code=401,
             )
 
-        # # Remove Comment Notification
+        # Remove Comment Notification
         notification = await Notification.get_or_none(
             sender=user,
             ntype="COMMENT",

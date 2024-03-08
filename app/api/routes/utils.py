@@ -214,7 +214,7 @@ async def get_comment_object(slug):
             replies_count=Count("replies"), reactions_count=Count("reactions")
         )
         .get_or_none(slug=slug)
-        .select_related("author", "author__avatar", "post")
+        .prefetch_related("author", "author__avatar", "post")
     )
     if not comment:
         raise RequestError(
@@ -241,8 +241,8 @@ async def get_reply_object(slug):
 async def get_reply_object(slug):
     reply = (
         await Reply.annotate(reactions_count=Count("reactions"))
-        .aget_or_none(slug=slug)
-        .select_related("author", "author__avatar")
+        .get_or_none(slug=slug)
+        .prefetch_related("author", "author__avatar")
     )
     if not reply:
         raise RequestError(
