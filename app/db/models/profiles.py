@@ -38,6 +38,13 @@ class NotificationTypeChoices(Enum):
     ADMIN = "ADMIN"
 
 
+class NotificationReadBy(BaseModel):
+    user = fields.ForeignKeyField("models.User", related_name="notifications_read_by")
+    notification = fields.ForeignKeyField(
+        "models.Notification", related_name="notifications_read_by"
+    )
+
+
 class Notification(BaseModel):
     sender = fields.ForeignKeyField(
         "models.User", related_name="notifications_from", null=True
@@ -51,7 +58,10 @@ class Notification(BaseModel):
     reply = fields.ForeignKeyField("models.Reply", null=True)
     text = fields.CharField(max_length=100, null=True)
     read_by: fields.ManyToManyRelation[User] = fields.ManyToManyField(
-        "models.User", related_name="notifications_read", null=True
+        "models.User",
+        related_name="notifications_read",
+        null=True,
+        through="notificationreadby",
     )
 
     def __str__(self):
@@ -64,11 +74,24 @@ class Notification(BaseModel):
             text = get_notification_message(self)
         return text
 
-    async def user_is_read(self, user_id):
-        return await self.read_by.filter(id=user_id).exists()
+    @property
+    def is_read(self):
+        return len(self.read_by) > 0
+
+    @property
+    def post_slug(self):
+        return self.post.slug if self.post else None
+
+    @property
+    def comment_slug(self):
+        return self.comment.slug if self.comment else None
+
+    @property
+    def reply_slug(self):
+        return self.reply.slug if self.reply else None
 
     # So I'm supposed to do some check constraints somewhere around here but tortoise orm
-    # has no provision currently for that (at least this  version) except by writing raw sql
+    # has no provision currently for that (at least this version) except by writing raw sql
     # in your migration files which is something I don't want to do. So I'll just focus on
     # doing very good validations. But there will be no db level constraints
     # I'll surely update this when they've updated the orm

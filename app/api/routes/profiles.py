@@ -330,9 +330,6 @@ class NotificationsView(Controller):
 
         # Return paginated data and set is_read to every item
         paginated_data = await paginator.paginate_queryset(notifications, page)
-        items = paginated_data["items"]
-        for item in items:
-            item.is_read = await item.user_is_read(user.id)
         return NotificationsResponseSchema(
             message="Notifications fetched", data=paginated_data
         )
@@ -348,7 +345,7 @@ class NotificationsView(Controller):
     ) -> ResponseSchema:
         id = data.id
         mark_all_as_read = data.mark_all_as_read
-
+        print(mark_all_as_read)
         resp_message = "Notifications read"
         if mark_all_as_read:
             # Mark all notifications as read

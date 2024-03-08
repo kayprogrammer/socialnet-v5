@@ -24,19 +24,19 @@ def get_notification_message(obj):
 async def send_notification_in_socket(
     secured: bool, host: str, notification: object, status: str = "CREATED"
 ):
-    if os.environ["ENVIRONMENT"] == "testing":
+    if os.environ.get("ENVIRONMENT") == "testing":
         return
     websocket_scheme = "wss://" if secured else "ws://"
-    uri = f"{websocket_scheme}{host}/api/v3/ws/notifications"
+    uri = f"{websocket_scheme}{host}/api/v5/ws/notifications"
     notification_data = {
         "id": str(notification.id),
         "status": status,
-        "ntype": notification.ntype,
+        "ntype": notification.ntype.value,
     }
     if status == "CREATED":
         notification_data = notification_data | NotificationSchema.model_validate(
             notification
-        ).model_dump(exclude={"id", "ntype"}, by_alias=True)
+        ).model_dump(exclude={"id", "ntype"})
     headers = [
         ("Authorization", settings.SOCKET_SECRET),
     ]

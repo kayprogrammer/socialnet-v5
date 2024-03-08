@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from typing import Dict
 from litestar import (
     Response,
     Request,
@@ -65,24 +64,6 @@ class SocketError:
         self.code = code
         self.err_msg = err_msg
         self.data = data
-
-    # def __new__(
-    #         self,
-    #         err_type: str,
-    #         err_msg: str,
-    #         code: int = 4000,
-    #         data: dict = None,
-    #     ):
-    #     err = {
-    #         "status": "error",
-    #         "type": err_type,
-    #         "code": code,
-    #         "message": err_msg,
-    #     }
-    #     # data = self.data
-    #     if data:
-    #         err["data"] = data
-    #     return err
 
 
 def request_error_handler(_: Request, exc: RequestError):

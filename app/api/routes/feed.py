@@ -217,15 +217,6 @@ class ReactionsView(Controller):
             ndata = {obj_field: obj}
             notification, created = await Notification.get_or_create(
                 sender=user, ntype="REACTION", **ndata
-            ).select_related(
-                "sender",
-                "sender__avatar",
-                "post",
-                "comment",
-                "comment__post",
-                "reply",
-                "reply__comment",
-                "reply__comment__post",
             )
             if created:
                 await notification.receivers.add(obj.author)

@@ -37,6 +37,7 @@ def get_notifications_queryset(current_user):
     notifications = (
         Notification.filter(receivers__id=current_user.id)
         .select_related("sender", "sender__avatar", "post", "comment", "reply")
+        .prefetch_related(Prefetch("read_by", queryset=User.filter(id=current_user.id)))
         .order_by("-created_at")
     )
     return notifications

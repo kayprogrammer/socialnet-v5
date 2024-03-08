@@ -107,17 +107,10 @@ class NotificationSchema(BaseModel):
     sender: Optional[UserDataSchema]
     ntype: str = Field(..., example="REACTION")
     message: str = Field(..., example="John Doe reacted to your post")
-    post_slug: Optional[str]
-    comment_slug: Optional[str]
-    reply_slug: Optional[str]
+    post_slug: Optional[str] = None
+    comment_slug: Optional[str] = None
+    reply_slug: Optional[str] = None
     is_read: bool = False
-    current_user_id: UUID = None
-
-    @validator("sender", pre=True)
-    def set_sender(cls, v):
-        if v.id:
-            return v
-        return None
 
 
 class ReadNotificationSchema(BaseModel):
