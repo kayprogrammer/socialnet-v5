@@ -36,9 +36,7 @@ class ChatSocketHandler(BaseSocketConnectionHandler):
             await self.send_error_data(socket, "Invalid ID", "invalid_input", 4004)
 
         if (
-            chat
-            and user_id not in (await chat.users.all())
-            and user_id != chat.owner_id
+            chat and user not in (await chat.users.all()) and user_id != chat.owner_id
         ):  # If chat but user is not a member
             await self.send_error_data(
                 socket, "You're not a member of this chat", "invalid_member", 4001
@@ -95,7 +93,7 @@ class ChatSocketHandler(BaseSocketConnectionHandler):
                 "updated_at": str(message.updated_at),
             }
             message_data = data | MessageSchema.model_validate(message).model_dump(
-                exclude={"id", "chat", "created_at", "updated_at"}, by_alias=True
+                exclude={"id", "chat", "created_at", "updated_at"}
             )
 
         for connection in self.active_connections:
@@ -106,10 +104,10 @@ class ChatSocketHandler(BaseSocketConnectionHandler):
                 if obj_user:
                     # Ensure that reading messages from a user id can only be done by the owner
                     if user == obj_user:
-                        await connection.send_json(data)
+                        await connection.send_json(message_data)
                 else:
-                    await connection.send_json(data)
-        return message_data
+                    await connection.send_json(message_data)
+        return "Sent"
 
 
 # Send message deletion details in websocket
