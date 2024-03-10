@@ -3,9 +3,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.db.models.accounts import Otp
-from .threads import EmailThread
 from app.core.config import settings
-import os
+import os, smtplib
 
 env = Environment(loader=PackageLoader("app", "templates"))
 
@@ -59,5 +58,14 @@ async def send_email(user, type):
     message["Subject"] = subject
     message.attach(MIMEText(html, "html"))
 
-    # Send email in background
-    EmailThread(message).start()
+    # Send email
+    try:
+        with smtplib.SMTP_SSL(
+            host=settings.MAIL_SENDER_HOST, port=settings.MAIL_SENDER_PORT
+        ) as server:
+            server.login(settings.MAIL_SENDER_EMAIL, settings.MAIL_SENDER_PASSWORD)
+            server.sendmail(
+                settings.MAIL_SENDER_EMAIL, message["To"], message.as_string()
+            )
+    except Exception as e:
+        print(f"Email Error - {e}")

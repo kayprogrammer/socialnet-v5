@@ -1,7 +1,7 @@
-from pydantic import BaseModel, validator, Field, EmailStr
+from pydantic import validator, Field, EmailStr
 
 from app.api.schemas.schema_examples import UserExample, token_example
-from .base import ResponseSchema
+from .base import BaseModel, ResponseSchema
 
 
 class RegisterUserSchema(BaseModel):
@@ -33,9 +33,7 @@ class RequestOtpSchema(BaseModel):
     email: EmailStr = Field(..., example=UserExample.email)
 
 
-class SetNewPasswordSchema(BaseModel):
-    email: EmailStr = Field(..., example=UserExample.email)
-    otp: int
+class SetNewPasswordSchema(VerifyOtpSchema):
     password: str = Field(..., example="newstrongpassword")
 
     @validator("password")

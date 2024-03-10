@@ -3,12 +3,7 @@ from pydantic import BaseModel as OriginalBaseModel, Field
 from .schema_examples import user_data
 
 
-class ResponseSchema(OriginalBaseModel):
-    status: str = "success"
-    message: str
-
-
-class BaseModel(OriginalBaseModel, extra="allow"):
+class BaseModel(OriginalBaseModel):
     class Config:
         arbitrary_types_allowed = True
         from_attributes = True
@@ -20,6 +15,11 @@ class BaseModel(OriginalBaseModel, extra="allow"):
             if not v.get("hidden", False):
                 props[k] = v
         schema["properties"] = props
+
+
+class ResponseSchema(BaseModel):
+    status: str = "success"
+    message: str
 
 
 class PaginatedResponseDataSchema(BaseModel):

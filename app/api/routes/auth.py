@@ -1,4 +1,5 @@
-from litestar import Controller, get, post
+from litestar import Controller, get, post, Response
+from litestar.background_tasks import BackgroundTask
 
 from app.api.schemas.auth import (
     RegisterUserSchema,
@@ -40,11 +41,11 @@ class RegisterView(Controller):
         # Create user
         user = await User.create_user(data.model_dump())
 
-        # Send verification email
-        await send_email(user, "activate")
-
-        return RegisterResponseSchema(
-            message="Registration successful", data={"email": user.email}
+        return Response(
+            RegisterResponseSchema(
+                message="Registration successful", data={"email": user.email}
+            ),
+            background=BackgroundTask(send_email, user, type="activate"),
         )
 
 
@@ -83,9 +84,10 @@ class VerifyEmailView(Controller):
         user_by_email.is_email_verified = True
         await user_by_email.save()
         await otp.delete()
-        # Send welcome email
-        await send_email(user_by_email, "welcome")
-        return ResponseSchema(message="Account verification successful")
+        return Response(
+            ResponseSchema(message="Account verification successful"),
+            background=BackgroundTask(send_email, user_by_email, type="welcome"),
+        )
 
 
 class ResendVerificationEmailView(Controller):
@@ -107,9 +109,10 @@ class ResendVerificationEmailView(Controller):
         if user_by_email.is_email_verified:
             return ResponseSchema(message="Email already verified")
 
-        # Send verification email
-        await send_email(user_by_email, "activate")
-        return ResponseSchema(message="Verification email sent")
+        return Response(
+            ResponseSchema(message="Verification email sent"),
+            background=BackgroundTask(send_email, user_by_email, type="activate"),
+        )
 
 
 class SendPasswordResetOtpView(Controller):
@@ -128,10 +131,10 @@ class SendPasswordResetOtpView(Controller):
                 err_msg="Incorrect Email",
                 status_code=404,
             )
-
-        # Send password reset email
-        await send_email(user_by_email, "reset")
-        return ResponseSchema(message="Password otp sent")
+        return Response(
+            ResponseSchema(message="Password otp sent"),
+            background=BackgroundTask(send_email, user_by_email, type="reset"),
+        )
 
 
 class SetNewPasswordView(Controller):
@@ -168,9 +171,10 @@ class SetNewPasswordView(Controller):
 
         user_by_email.password = get_password_hash(password)
         await user_by_email.save()
-        # Send password reset success email
-        await send_email(user_by_email, "reset-success")
-        return ResponseSchema(message="Password reset successful")
+        return Response(
+            ResponseSchema(message="Password reset successful"),
+            background=BackgroundTask(send_email, user_by_email, type="reset-success"),
+        )
 
 
 class LoginView(Controller):
