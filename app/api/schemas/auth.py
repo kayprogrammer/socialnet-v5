@@ -21,8 +21,6 @@ class RegisterUserSchema(BaseModel):
         if not v:
             raise ValueError("You must agree to terms and conditions")
         return v
-from litestar.contrib.pydantic import PydanticDTO
-RegisterUserDto = PydanticDTO[RegisterUserSchema]
 
 class VerifyOtpSchema(BaseModel):
     email: EmailStr = Field(..., examples=[UserExample.email])

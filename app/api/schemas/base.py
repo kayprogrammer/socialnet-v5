@@ -34,4 +34,4 @@ class UserDataSchema(BaseModel):
     avatar: Optional[str] = Field(..., alias="get_avatar")
 
     class Config:
-        json_schema_extra = {"example": user_data}
+        json_schema_extra = {"examples": [user_data]}
