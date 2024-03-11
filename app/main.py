@@ -5,7 +5,6 @@ from litestar.openapi import OpenAPIConfig, OpenAPIController
 from litestar.config.cors import CORSConfig
 from litestar.middleware.rate_limit import RateLimitConfig
 from litestar.openapi.spec import Components, SecurityScheme
-
 from app.core.config import settings
 from app.common.exception_handlers import exc_handlers
 from app.api.routers import base_router

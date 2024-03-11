@@ -2,6 +2,7 @@ from litestar import Controller, get, post, Response
 from litestar.background_tasks import BackgroundTask
 
 from app.api.schemas.auth import (
+    RegisterUserDto,
     RegisterUserSchema,
     VerifyOtpSchema,
     RequestOtpSchema,
@@ -26,6 +27,7 @@ class RegisterView(Controller):
     @post(
         summary="Register a new user",
         description="This endpoint registers new users into our application",
+        dto=RegisterUserDto
     )
     async def register(self, data: RegisterUserSchema) -> RegisterResponseSchema:
         # Check for existing user

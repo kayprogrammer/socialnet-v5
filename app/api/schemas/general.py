@@ -1,4 +1,4 @@
-from pydantic import validator, Field, EmailStr
+from pydantic import EmailStr
 
 from .base import BaseModel, ResponseSchema
 

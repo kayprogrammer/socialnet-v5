@@ -1,5 +1,5 @@
 from uuid import UUID
-from pydantic import Field, validator
+from pydantic import Field, computed_field, validator
 
 from app.db.models.feed import ReactionChoices
 from .base import (
@@ -10,7 +10,6 @@ from .base import (
 )
 from app.api.utils.file_processors import FileProcessor
 from app.api.utils.validators import validate_image_type
-from .schema_examples import file_upload_data
 from datetime import datetime
 from typing import Any, Optional, Dict, List
 
@@ -46,11 +45,10 @@ class PostsResponseSchema(ResponseSchema):
 class PostInputResponseDataSchema(PostSchema):
     image: Optional[Any] = Field(..., exclude=True, hidden=True)
     image_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
-    file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
-    @validator("file_upload_data", always=True)
-    def assemble_file_upload_data(cls, v, values):
-        image_upload_id = values.get("image_upload_id")
+    @computed_field
+    def file_upload_data(self) -> Dict:
+        image_upload_id = self.image_upload_id
         if image_upload_id:
             return FileProcessor.generate_file_signature(
                 key=image_upload_id,

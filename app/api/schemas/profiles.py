@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from pydantic import EmailStr, validator, Field
+from pydantic import EmailStr, computed_field, validator, Field
 from datetime import datetime, date
 from .base import (
     BaseModel,
@@ -7,7 +7,6 @@ from .base import (
     ResponseSchema,
     UserDataSchema,
 )
-from .schema_examples import file_upload_data
 from app.api.utils.file_processors import FileProcessor
 from uuid import UUID
 
@@ -77,18 +76,16 @@ class ProfileResponseSchema(ResponseSchema):
 class ProfileUpdateResponseDataSchema(ProfileSchema):
     avatar: Optional[Any] = Field(..., exclude=True, hidden=True)
     image_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
-    file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
-    @validator("file_upload_data", always=True)
-    def assemble_file_upload_data(cls, v, values):
-        image_upload_id = values.get("image_upload_id")
-        if image_upload_id:
+    @computed_field
+    def file_upload_data(self) -> Dict:
+        file_upload_id = self.image_upload_id
+        if file_upload_id:
             return FileProcessor.generate_file_signature(
-                key=image_upload_id,
+                key=file_upload_id,
                 folder="avatars",
             )
         return None
-
 
 class ProfileUpdateResponseSchema(ResponseSchema):
     data: ProfileUpdateResponseDataSchema

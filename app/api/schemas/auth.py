@@ -1,14 +1,13 @@
 from pydantic import validator, Field, EmailStr
-
 from app.api.schemas.schema_examples import UserExample, token_example
 from .base import BaseModel, ResponseSchema
 
 
 class RegisterUserSchema(BaseModel):
-    first_name: str = Field(..., example=UserExample.first_name, max_length=50)
-    last_name: str = Field(..., example=UserExample.last_name, max_length=50)
-    email: EmailStr = Field(..., example=UserExample.email)
-    password: str = Field(..., example=UserExample.password, min_length=8)
+    first_name: str = Field(..., examples=[UserExample.first_name], max_length=50)
+    last_name: str = Field(..., examples=[UserExample.last_name], max_length=50)
+    email: EmailStr = Field(..., examples=[UserExample.email])
+    password: str = Field(..., examples=[UserExample.password], min_length=8)
     terms_agreement: bool
 
     @validator("first_name", "last_name")
@@ -22,19 +21,20 @@ class RegisterUserSchema(BaseModel):
         if not v:
             raise ValueError("You must agree to terms and conditions")
         return v
-
+from litestar.contrib.pydantic import PydanticDTO
+RegisterUserDto = PydanticDTO[RegisterUserSchema]
 
 class VerifyOtpSchema(BaseModel):
-    email: EmailStr = Field(..., example=UserExample.email)
+    email: EmailStr = Field(..., examples=[UserExample.email])
     otp: int
 
 
 class RequestOtpSchema(BaseModel):
-    email: EmailStr = Field(..., example=UserExample.email)
+    email: EmailStr = Field(..., examples=[UserExample.email])
 
 
 class SetNewPasswordSchema(VerifyOtpSchema):
-    password: str = Field(..., example="newstrongpassword")
+    password: str = Field(..., examples=["newstrongpassword"])
 
     @validator("password")
     def validate_password(cls, v):
@@ -44,14 +44,14 @@ class SetNewPasswordSchema(VerifyOtpSchema):
 
 
 class LoginUserSchema(BaseModel):
-    email: EmailStr = Field(..., example=UserExample.email)
-    password: str = Field(..., example=UserExample.password)
+    email: EmailStr = Field(..., examples=[UserExample.email])
+    password: str = Field(..., examples=[UserExample.password])
 
 
 class RefreshTokensSchema(BaseModel):
     refresh: str = Field(
         ...,
-        example=token_example,
+        examples=[token_example],
     )
 
 
@@ -62,11 +62,11 @@ class RegisterResponseSchema(ResponseSchema):
 class TokensResponseDataSchema(BaseModel):
     access: str = Field(
         ...,
-        example=token_example,
+        examples=[token_example],
     )
     refresh: str = Field(
         ...,
-        example=token_example,
+        examples=[token_example],
     )
 
 

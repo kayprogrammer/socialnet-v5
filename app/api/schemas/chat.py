@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Optional
-from pydantic import Field, validator
+from pydantic import Field, computed_field, validator
 from app.api.schemas.base import (
     BaseModel,
     PaginatedResponseDataSchema,
@@ -9,7 +9,6 @@ from app.api.schemas.base import (
 from uuid import UUID
 from datetime import datetime
 from app.api.utils.file_processors import FileProcessor
-from .schema_examples import file_upload_data
 
 from app.api.utils.validators import validate_file_type, validate_image_type
 
@@ -140,11 +139,10 @@ class ChatsResponseSchema(ResponseSchema):
 class MessageCreateResponseDataSchema(MessageSchema):
     file: Any = Field(None, exclude=True, hidden=True)
     file_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
-    file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
-    @validator("file_upload_data", always=True)
-    def assemble_file_upload_data(cls, v, values):
-        file_upload_id = values.get("file_upload_id")
+    @computed_field
+    def file_upload_data(self) -> Dict:
+        file_upload_id = self.file_upload_id
         if file_upload_id:
             return FileProcessor.generate_file_signature(
                 key=file_upload_id,
@@ -164,11 +162,10 @@ class ChatResponseSchema(ResponseSchema):
 class GroupChatInputResponseDataSchema(GroupChatSchema):
     image: Any = Field(None, exclude=True, hidden=True)
     image_upload_id: Optional[Any] = Field(..., exclude=True, hidden=True)
-    file_upload_data: Optional[Dict] = Field(None, example=file_upload_data)
 
-    @validator("file_upload_data", always=True)
-    def assemble_file_upload_data(cls, v, values):
-        image_upload_id = values.get("image_upload_id")
+    @computed_field
+    def file_upload_data(self) -> Dict:
+        image_upload_id = self.image_upload_id
         if image_upload_id:
             return FileProcessor.generate_file_signature(
                 key=image_upload_id,

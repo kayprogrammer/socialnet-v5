@@ -108,6 +108,7 @@ def change_length_error_message(message):
 def validation_exception_handler(_: Request, exc: ValidationException) -> Response:
     # Get the original 'detail' list of errors
     details = exc.extra
+    print(details)
     modified_details = {}
     for error in details:
         # Modify messages
