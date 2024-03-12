@@ -23,11 +23,11 @@ def event_loop():
 @pytest.fixture(scope="session")
 async def db_conf():
     NEW_ORM_CONF = TORTOISE_ORM
-    NEW_ORM_CONF["connections"]["default"] = "sqlite://:memory:"
+    NEW_ORM_CONF["connections"]["default"] = "sqlite://test.db"
     yield NEW_ORM_CONF
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="session")
 async def setup_db(db_conf):
     await Tortoise.init(config=db_conf)
     await Tortoise.generate_schemas()
@@ -56,7 +56,7 @@ async def test_user():
         "email": "test@example.com",
         "password": "testpassword",
     }
-    user = await User.create_user(user_dict)
+    user = await User.get_or_create(email=user_dict["email"], defaults=user_dict)
     return user
 
 
@@ -69,7 +69,7 @@ async def verified_user():
         "password": "testpassword",
         "is_email_verified": True,
     }
-    user = await User.create_user(user_dict)
+    user = await User.get_or_create(email=user_dict["email"], defaults=user_dict)
     return user
 
 
@@ -82,7 +82,7 @@ async def another_verified_user():
         "password": "anothertestverifieduser123",
         "is_email_verified": True,
     }
-    user = await User.create_user(user_dict)
+    user = await User.get_or_create(email=user_dict["email"], defaults=user_dict)
     return user
 
 
@@ -93,8 +93,6 @@ async def authorized_client(verified_user: User, client: AsyncTestClient):
     )
     verified_user.refresh_token = await Authentication.create_refresh_token()
     await verified_user.save()
-    print(verified_user.id)
-    print((await User.all()))
     client.headers = {
         **client.headers,
         "Authorization": f"Bearer {verified_user.access_token}",

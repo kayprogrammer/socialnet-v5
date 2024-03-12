@@ -67,6 +67,8 @@ async def test_resend_verification_email(client, test_user):
     user_in = {"email": test_user.email}
 
     # Verify that an unverified user can get a new email
+    test_user.is_email_verified = False
+    await test_user.save()
     response = await client.post(
         f"{BASE_URL_PATH}/resend-verification-email", json=user_in
     )
@@ -118,6 +120,8 @@ async def test_login(mocker, client, test_user):
     }
 
     # Test for unverified credentials (email)
+    test_user.is_email_verified = False
+    await test_user.save()
     response = await client.post(
         f"{BASE_URL_PATH}/login",
         json={"email": test_user.email, "password": "testpassword"},
@@ -160,7 +164,6 @@ async def test_refresh_token(mocker, client, verified_user):
     refresh = await Authentication.create_refresh_token()
     verified_user.refresh_token = refresh
     await verified_user.save()
-    mocker.patch("app.api.utils.auth.Authentication.decode_jwt", return_value=True)
     response = await client.post(
         f"{BASE_URL_PATH}/refresh", json={"refresh": verified_user.refresh_token}
     )
