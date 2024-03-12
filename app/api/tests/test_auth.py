@@ -38,7 +38,7 @@ async def test_register_user(client):
 
 
 async def test_verify_email(client, test_user: User):
-    otp = "111111"
+    otp = 111111
 
     # Verify that the email verification fails with an invalid otp
     response = await client.post(
@@ -51,11 +51,10 @@ async def test_verify_email(client, test_user: User):
         "message": "Incorrect Otp",
     }
     # Verify that the email verification succeeds with a valid otp
-    otp = await Otp.update_or_create(test_user.id)
-
+    otp_code = (await Otp.update_or_create(test_user.id)).code
     response = await client.post(
         f"{BASE_URL_PATH}/verify-email",
-        json={"email": test_user.email, "otp": otp.code},
+        json={"email": test_user.email, "otp": otp_code},
     )
     assert response.status_code == 200
     assert response.json() == {
@@ -240,7 +239,7 @@ async def test_reset_password(client, verified_user):
     }
 
     # Verify that password reset succeeds
-    otp = (await Otp.objects().create(user=verified_user.id)).code
+    otp = (await Otp.update_or_create(verified_user.id)).code
     password_reset_data["otp"] = otp
 
     response = await client.post(
@@ -272,5 +271,5 @@ async def test_logout(authorized_client):
     assert response.json() == {
         "status": "failure",
         "code": ErrorCode.INVALID_TOKEN,
-        "message": "Auth Token is Invalid or Expired!",
+        "message": "Auth Token is Invalid or Expired",
     }

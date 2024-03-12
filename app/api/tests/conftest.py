@@ -1,19 +1,14 @@
 from litestar.testing import AsyncTestClient
-from asgi_lifespan import LifespanManager
-from pydantic import AnyUrl
 from app.db.config import TORTOISE_ORM
 from app.db.models.accounts import User
 from tortoise import Tortoise
 from tortoise.connection import connections
 
 from app.api.utils.auth import Authentication
-from pytest_postgresql import factories
-from pytest_postgresql.janitor import DatabaseJanitor
 import pytest, asyncio, os
 from app.main import app
 
 os.environ["ENVIRONMENT"] = "testing"
-test_db = factories.postgresql_proc(port=None, dbname="test_db")
 
 
 # GENERAL FIXTURES
@@ -26,29 +21,10 @@ def event_loop():
 
 
 @pytest.fixture(scope="session")
-async def db_conf(test_db):
-    pg_host = test_db.host
-    pg_port = test_db.port
-    pg_user = test_db.user
-    pg_db = test_db.dbname
-    pg_password = test_db.password
-
-    with DatabaseJanitor(
-        pg_user, pg_host, pg_port, pg_db, test_db.version, pg_password
-    ):
-        url = str(
-            AnyUrl.build(
-                scheme="postgres",
-                username=pg_user,
-                password=pg_password,
-                host=pg_host,
-                port=pg_port,
-                path=pg_db,
-            )
-        )
-        NEW_ORM_CONF = TORTOISE_ORM
-        NEW_ORM_CONF["connections"]["default"] = url
-        yield NEW_ORM_CONF
+async def db_conf():
+    NEW_ORM_CONF = TORTOISE_ORM
+    NEW_ORM_CONF["connections"]["default"] = "sqlite://:memory:"
+    yield NEW_ORM_CONF
 
 
 @pytest.fixture(autouse=True)
@@ -57,16 +33,15 @@ async def setup_db(db_conf):
     await Tortoise.generate_schemas()
     yield
     await connections.close_all()
-    # await Tortoise._drop_databases()
+    await Tortoise._drop_databases()
 
 
 @pytest.fixture()
 async def client(mocker, db_conf):
     mocker.patch("app.db.config.TORTOISE_ORM", new=db_conf)
 
-    async with LifespanManager(app) as manager:
-        async with AsyncTestClient(app=manager.app) as client:
-            yield client
+    async with AsyncTestClient(app=app) as client:
+        yield client
 
 
 # -----------------------------------------------------------------------
@@ -118,6 +93,8 @@ async def authorized_client(verified_user: User, client: AsyncTestClient):
     )
     verified_user.refresh_token = await Authentication.create_refresh_token()
     await verified_user.save()
+    print(verified_user.id)
+    print((await User.all()))
     client.headers = {
         **client.headers,
         "Authorization": f"Bearer {verified_user.access_token}",

@@ -2,7 +2,6 @@ aerich==0.7.2
 aiosqlite==0.17.0
 annotated-types==0.6.0
 anyio==4.2.0
-asgi-lifespan==2.1.0
 async-timeout==4.0.3
 asyncpg==0.29.0
 bcrypt==4.0.1
@@ -45,7 +44,6 @@ pypika-tortoise==0.1.6
 pytest==8.0.0
 pytest-asyncio==0.23.5
 pytest-mock==3.12.0
-pytest-postgresql==5.1.0
 python-dateutil==2.8.2
 python-dotenv==1.0.1
 python-slugify==8.0.4

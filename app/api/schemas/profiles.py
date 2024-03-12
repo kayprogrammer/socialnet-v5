@@ -87,6 +87,7 @@ class ProfileUpdateResponseDataSchema(ProfileSchema):
             )
         return None
 
+
 class ProfileUpdateResponseSchema(ResponseSchema):
     data: ProfileUpdateResponseDataSchema
 

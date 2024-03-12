@@ -22,6 +22,7 @@ class RegisterUserSchema(BaseModel):
             raise ValueError("You must agree to terms and conditions")
         return v
 
+
 class VerifyOtpSchema(BaseModel):
     email: EmailStr = Field(..., examples=[UserExample.email])
     otp: int

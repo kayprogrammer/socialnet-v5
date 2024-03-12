@@ -70,16 +70,19 @@ class VerifyEmailView(Controller):
         if user_by_email.is_email_verified:
             return ResponseSchema(message="Email already verified")
 
-        otp = await Otp.get_or_none(user_id=user_by_email.id)
-        if not otp or otp.code != data.otp:
+        otp = await Otp.get_or_none(user_id=user_by_email.id, code=data.otp)
+        if not otp:
             raise RequestError(
                 err_code=ErrorCode.INCORRECT_OTP,
                 err_msg="Incorrect Otp",
                 status_code=404,
             )
         if otp.check_expiration():
-            err_code = (ErrorCode.EXPIRED_OTP,)
-            raise RequestError(err_msg="Expired Otp")
+            raise RequestError(
+                err_code=ErrorCode.EXPIRED_OTP,
+                err_msg="Expired Otp",
+                status_code=400,
+            )
 
         user_by_email.is_email_verified = True
         await user_by_email.save()
