@@ -2,7 +2,7 @@ from enum import Enum
 from app.api.utils.notification import get_notification_message
 from app.db.models.accounts import User
 from app.db.models.base import BaseModel
-from tortoise import fields
+from tortoise import fields, Model
 
 
 class RequestStatusChoices(Enum):
@@ -38,13 +38,6 @@ class NotificationTypeChoices(Enum):
     ADMIN = "ADMIN"
 
 
-class NotificationReadBy(BaseModel):
-    user = fields.ForeignKeyField("models.User", related_name="notifications_read_by")
-    notification = fields.ForeignKeyField(
-        "models.Notification", related_name="notifications_read_by"
-    )
-
-
 class Notification(BaseModel):
     sender = fields.ForeignKeyField(
         "models.User", related_name="notifications_from", null=True
@@ -61,7 +54,7 @@ class Notification(BaseModel):
         "models.User",
         related_name="notifications_read",
         null=True,
-        through="notificationreadby",
+        through="notification_read_by",
     )
 
     def __str__(self):

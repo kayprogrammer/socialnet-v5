@@ -164,6 +164,7 @@ class UserProfileView(Controller):
     @post(
         summary="Delete user's account",
         description="This endpoint deletes a particular user's account (irreversible)",
+        status_code=200,
     )
     async def delete_user(self, data: DeleteUserSchema, user: User) -> ResponseSchema:
         # Check if password is valid
@@ -339,6 +340,7 @@ class NotificationsView(Controller):
         description="""
             This endpoint reads a notification
         """,
+        status_code=200,
     )
     async def read_notification(
         self, data: ReadNotificationSchema, user: User

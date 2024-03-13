@@ -1,11 +1,12 @@
 from litestar.testing import AsyncTestClient
 from app.db.config import TORTOISE_ORM
-from app.db.models.accounts import User
+from app.db.models.accounts import City, Country, Region, User
 from tortoise import Tortoise
 from tortoise.connection import connections
 
 from app.api.utils.auth import Authentication
 import pytest, asyncio, os
+from app.db.models.profiles import Friend
 from app.main import app
 
 os.environ["ENVIRONMENT"] = "testing"
@@ -120,3 +121,27 @@ async def another_authorized_client(
 
 
 # -----------------------------------------------------------------------
+
+
+# PROFILE FIXTURES
+@pytest.fixture
+async def city():
+    country = await Country.create(name="TestCountry", code="TC")
+    region = await Region.create(name="TestRegion", country=country)
+    city = await City.create(name="TestCity", region=region, country=country)
+    return city
+
+
+@pytest.fixture
+async def friend(verified_user: User, another_verified_user: User):
+    friend = await Friend.get_or_none(
+        requester=verified_user, requestee=another_verified_user
+    ).select_related("requester", "requestee")
+    if not friend:
+        friend = await Friend.create(
+            requester=verified_user, requestee=another_verified_user, status="ACCEPTED"
+        )
+    return friend
+
+
+# -------------------------------------------------------------------------------
