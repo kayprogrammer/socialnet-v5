@@ -6,6 +6,7 @@ from tortoise.connection import connections
 
 from app.api.utils.auth import Authentication
 import pytest, asyncio, os
+from app.db.models.chat import Chat, Message
 from app.db.models.profiles import Friend
 from app.main import app
 
@@ -142,6 +143,49 @@ async def friend(verified_user: User, another_verified_user: User):
             requester=verified_user, requestee=another_verified_user, status="ACCEPTED"
         )
     return friend
+
+
+# -------------------------------------------------------------------------------
+
+
+# CHAT FIXTURES
+@pytest.fixture
+async def chat(verified_user, another_verified_user):
+    # Create Chat
+    chat = await Chat.get_or_none(ctype="DM").prefetch_related("owner", "users")
+    if not chat:
+        chat = await Chat.create(owner=verified_user)
+        await chat.users.add(another_verified_user)
+    return chat
+
+
+@pytest.fixture
+async def group_chat(verified_user, another_verified_user):
+    # Create Group Chat
+    chat = await Chat.get_or_none(
+        owner=verified_user,
+        name="My New Group",
+        ctype="GROUP",
+        description="This is the description of my group chat",
+    ).prefetch_related("owner", "users")
+    if not chat:
+        chat = await Chat.create(
+            owner=verified_user,
+            name="My New Group",
+            ctype="GROUP",
+            description="This is the description of my group chat",
+        )
+        await chat.users.add(another_verified_user)
+    return chat
+
+
+@pytest.fixture
+async def message(chat):
+    # Create Message
+    message = await Message.get_or_none().select_related("chat", "sender")
+    if not message:
+        message = await Message.create(chat=chat, sender=chat.owner, text="Hello Boss")
+    return message
 
 
 # -------------------------------------------------------------------------------
