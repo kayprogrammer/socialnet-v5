@@ -1,12 +1,12 @@
-# SOCIALNET V5 (WORK IN PROGRESS)
-A Social Networking API built with Litestar and Tortoise ORM
+# SOCIALNET V5
+A Realtime Social Networking API built with Litestar and Tortoise ORM
 
 
 ![alt text](https://github.com/kayprogrammer/socialnet-v5/blob/main/display/litestar.svg?raw=true)
 
 
-#### FASTAPI DOCS: [Documentation](https://fastapi.tiangolo.com/)
-#### PICCOLO DOCS: [Documentation](https://piccolo-orm.readthedocs.io/) 
+#### LITESTAR DOCS: [Documentation](https://docs.litestar.dev/latest/)
+#### TORTOISE ORM DOCS: [Documentation](https://tortoise.github.io/index.html) 
 #### PG ADMIN: [Documentation](https://pgadmin.org) 
 
 
@@ -26,10 +26,13 @@ A Social Networking API built with Litestar and Tortoise ORM
 
 - Run Locally
 ```bash
-    $ alembic upgrade heads 
+    $ aerich init-db
 ```
 ```bash
-    $ uvicorn app.main:app --debug --reload
+    $ aerich mig
+```
+```bash
+    $ litestar run --reload --debug
 ```
 
 - Run With Docker
@@ -50,15 +53,10 @@ OR
     $ make test
 ```
 
-<!-- ![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp1.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp2.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp3.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp4.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp5.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp6.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp7.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp8.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp9.png?raw=true)
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/disp10.png?raw=true)
-
-![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/admin.png?raw=true) -->
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display1.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display2.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display3.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display4.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display5.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display6.png?raw=true)
+![alt text](https://github.com/kayprogrammer/socialnet-V5/blob/main/display/display7.png?raw=true)
